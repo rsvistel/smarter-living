@@ -1,5 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { getMCCCategory, CATEGORY_ICONS } from './mcc-mapping';
+import MonthlySpendingChart from './components/MonthlySpendingChart';
 
 interface Transaction {
   CardId: string;
@@ -119,6 +121,15 @@ interface CardInfo {
   currencies: string[];
 }
 
+interface MonthlySpending {
+  month: string;
+  year: number;
+  totalCHF: number;
+  transactionCount: number;
+  currencies: Record<string, number>;
+  categories: Record<string, number>;
+}
+
 export default async function Home({ searchParams }: PageProps) {
   const params = await searchParams;
   const currentPage = parseInt(params.page || '1', 10);
@@ -130,6 +141,7 @@ export default async function Home({ searchParams }: PageProps) {
   let totalTransactions = 0;
   let exchangeRates: Record<string, number> = {};
   let cardStats: CardInfo[] = [];
+  let monthlySpending: MonthlySpending[] = [];
   
   try {
     const filePath = path.join(process.cwd(), 'data', 'data.csv');
@@ -182,6 +194,56 @@ export default async function Home({ searchParams }: PageProps) {
     transactions = sortedTransactions.slice(startIndex, endIndex);
     
     exchangeRates = await getExchangeRates();
+    
+    // Calculate monthly spending (filtered by selected cards if any)
+    const transactionsForAnalysis = selectedCards.length > 0
+      ? allTransactions.filter(t => selectedCards.includes(t.CardId))
+      : allTransactions;
+    
+    const monthlyData = new Map<string, MonthlySpending>();
+    
+    transactionsForAnalysis.forEach(transaction => {
+      const date = new Date(transaction.trx_date);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const monthName = date.toLocaleDateString('en-US', { month: 'long' });
+      const year = date.getFullYear();
+      
+      if (!monthlyData.has(monthKey)) {
+        monthlyData.set(monthKey, {
+          month: monthName,
+          year,
+          totalCHF: 0,
+          transactionCount: 0,
+          currencies: {},
+          categories: {}
+        });
+      }
+      
+      const monthData = monthlyData.get(monthKey)!;
+      monthData.transactionCount++;
+      
+      const amount = parseFloat(transaction.trx_amount) || 0;
+      const currency = transaction.trx_currency;
+      const currencySymbol = CURRENCY_CODES[currency] || currency;
+      
+      // Convert to CHF
+      let chfAmount = amount;
+      if (currency !== '756' && exchangeRates[currency]) {
+        chfAmount = amount * exchangeRates[currency];
+      }
+      
+      monthData.totalCHF += chfAmount;
+      monthData.currencies[currencySymbol] = (monthData.currencies[currencySymbol] || 0) + amount;
+      
+      // Add category breakdown
+      const category = getMCCCategory(transaction.trx_mcc).category;
+      monthData.categories[category] = (monthData.categories[category] || 0) + chfAmount;
+    });
+    
+    monthlySpending = Array.from(monthlyData.values()).sort((a, b) => {
+      return b.year - a.year || (new Date(`${b.month} 1`).getMonth() - new Date(`${a.month} 1`).getMonth());
+    });
+    
   } catch (error) {
     console.error('Error reading CSV file:', error);
   }
@@ -217,31 +279,31 @@ export default async function Home({ searchParams }: PageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
+    <div className="min-h-screen bg-black py-8 px-4">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Transaction History</h1>
+            <h1 className="text-3xl font-bold text-white">Transaction History</h1>
             {selectedCards.length > 0 && (
               <div className="mt-2">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-sm text-gray-500">
+                  <span className="text-sm text-gray-400">
                     Filtered by {selectedCards.length} card{selectedCards.length !== 1 ? 's' : ''}:
                   </span>
                   <a 
                     href="/" 
-                    className="text-sm text-blue-600 hover:text-blue-800 underline"
+                    className="text-sm text-blue-400 hover:text-blue-300 underline"
                   >
                     Clear all filters
                   </a>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {selectedCards.map((cardId) => (
-                    <div key={cardId} className="flex items-center bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">
+                    <div key={cardId} className="flex items-center bg-blue-900 text-blue-200 px-2 py-1 rounded text-sm">
                       <span className="font-mono mr-2">{cardId}</span>
                       <a 
                         href={removeCard(cardId)}
-                        className="text-blue-600 hover:text-blue-800 font-bold text-xs"
+                        className="text-blue-300 hover:text-blue-100 font-bold text-xs"
                         title={`Remove ${cardId}`}
                       >
                         ×
@@ -252,16 +314,16 @@ export default async function Home({ searchParams }: PageProps) {
               </div>
             )}
           </div>
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-gray-400">
             Page {currentPage} of {totalPages}
           </div>
         </div>
         
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">Select Cards</h2>
+            <h2 className="text-xl font-semibold text-white">Select Cards</h2>
             {selectedCards.length > 0 && (
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-gray-400">
                 {selectedCards.length} card{selectedCards.length !== 1 ? 's' : ''} selected
               </div>
             )}
@@ -273,20 +335,20 @@ export default async function Home({ searchParams }: PageProps) {
                 <a
                   key={card.id}
                   href={toggleCard(card.id)}
-                  className={`bg-white p-4 rounded-lg shadow-sm border transition-all duration-200 ${
+                  className={`bg-gray-800 p-4 rounded-lg shadow-sm border transition-all duration-200 ${
                     isSelected
-                      ? 'border-blue-500 bg-blue-50 shadow-md'
-                      : 'border-gray-200 hover:shadow-md hover:border-blue-300'
+                      ? 'border-blue-500 bg-blue-900/20 shadow-md'
+                      : 'border-gray-700 hover:shadow-md hover:border-blue-400'
                   }`}
                 >
                   <div className="flex items-start justify-between mb-2">
-                    <div className="font-mono text-sm font-medium text-gray-900">
+                    <div className="font-mono text-sm font-medium text-white">
                       {card.id}
                     </div>
                     <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
                       isSelected
-                        ? 'border-blue-500 bg-blue-500'
-                        : 'border-gray-300'
+                        ? 'border-blue-400 bg-blue-500'
+                        : 'border-gray-600'
                     }`}>
                       {isSelected && (
                         <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -295,7 +357,7 @@ export default async function Home({ searchParams }: PageProps) {
                       )}
                     </div>
                   </div>
-                  <div className="text-sm text-gray-600 space-y-1">
+                  <div className="text-sm text-gray-300 space-y-1">
                     <div className="flex justify-between">
                       <span>Transactions:</span>
                       <span className="font-medium">{card.transactionCount}</span>
@@ -311,13 +373,92 @@ export default async function Home({ searchParams }: PageProps) {
           </div>
         </div>
         
-        <div className="bg-white shadow-sm rounded-lg overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+        {monthlySpending.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold text-white mb-4">
+              Monthly Spending {selectedCards.length > 0 ? '(Filtered Cards)' : '(All Cards)'}
+            </h2>
+            <div className="bg-gray-800 shadow-sm rounded-lg overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-700">
+                  <thead className="bg-gray-900">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Month</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Total (CHF)</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Transactions</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Categories</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-gray-800 divide-y divide-gray-700">
+                    {monthlySpending.map((month, index) => (
+                      <tr key={`${month.year}-${month.month}`} className="hover:bg-gray-700">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
+                          {month.month} {month.year}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-white text-right">
+                          {month.totalCHF.toFixed(2)} CHF
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 text-right">
+                          {month.transactionCount}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-300">
+                          <div className="space-y-4">
+                            <div className="space-y-1">
+                              {Object.entries(month.categories)
+                                .sort(([,a], [,b]) => b - a)
+                                .slice(0, 5)
+                                .map(([category, amount]) => (
+                                <div key={category} className="flex justify-between items-center">
+                                  <div className="flex items-center gap-1.5 flex-1">
+                                    {(() => {
+                                      const IconComponent = CATEGORY_ICONS[category as keyof typeof CATEGORY_ICONS];
+                                      return <IconComponent className="w-3 h-3 text-gray-400" />;
+                                    })()}
+                                    <span className="text-xs text-gray-400 truncate">{category}</span>
+                                  </div>
+                                  <span className="text-xs font-medium text-white ml-2">
+                                    {amount.toFixed(0)} CHF
+                                  </span>
+                                </div>
+                              ))}
+                              {Object.keys(month.categories).length > 5 && (
+                                <div className="text-xs text-gray-500 italic">
+                                  +{Object.keys(month.categories).length - 5} more categories
+                                </div>
+                              )}
+                            </div>
+                            <div className="w-full">
+                              <MonthlySpendingChart categories={month.categories} totalAmount={month.totalCHF} />
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              <div className="bg-gray-900 px-6 py-3 border-t border-gray-700">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-400">
+                    Total across {monthlySpending.length} months:
+                  </span>
+                  <span className="font-bold text-white">
+                    {monthlySpending.reduce((sum, month) => sum + month.totalCHF, 0).toFixed(2)} CHF
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        <div className="bg-gray-800 shadow-sm rounded-lg overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-700 bg-gray-900">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium text-gray-900">Transactions</h3>
+              <h3 className="text-lg font-medium text-white">Transactions</h3>
               <a
                 href={toggleSort()}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
+                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 rounded-md transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   {sortOrder === 'newest' ? (
@@ -331,42 +472,51 @@ export default async function Home({ searchParams }: PageProps) {
             </div>
           </div>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-gray-700">
+              <thead className="bg-gray-900">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Card Present</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Description</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Location</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Category</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Card Present</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-gray-800 divide-y divide-gray-700">
                 {transactions.map((transaction, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <tr key={index} className="hover:bg-gray-700">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
                       {formatDate(transaction.trx_date)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-white capitalize">
                       {transaction.trx_desc}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
                       {formatAmount(transaction.trx_amount, transaction.trx_currency, exchangeRates)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                       {transaction.trx_city}, {transaction.trx_country}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {transaction.MccGroup}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-900 text-blue-200">
+                        {(() => {
+                          const category = getMCCCategory(transaction.trx_mcc).category;
+                          const IconComponent = CATEGORY_ICONS[category as keyof typeof CATEGORY_ICONS];
+                          return (
+                            <>
+                              <IconComponent className="w-3 h-3" />
+                              {category}
+                            </>
+                          );
+                        })()}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                         transaction.IsCardPresent === 'TRUE' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-yellow-100 text-yellow-800'
+                          ? 'bg-green-900 text-green-200' 
+                          : 'bg-yellow-900 text-yellow-200'
                       }`}>
                         {transaction.IsCardPresent === 'TRUE' ? 'Present' : 'Not Present'}
                       </span>
@@ -377,9 +527,9 @@ export default async function Home({ searchParams }: PageProps) {
             </table>
           </div>
           
-          <div className="bg-gray-50 px-6 py-3 border-t border-gray-200">
+          <div className="bg-gray-900 px-6 py-3 border-t border-gray-700">
             <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-gray-400">
                 Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalTransactions)} of {totalTransactions} transactions
               </div>
               
@@ -388,8 +538,8 @@ export default async function Home({ searchParams }: PageProps) {
                   href={hasPrevPage ? buildUrl(currentPage - 1) : '#'}
                   className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
                     hasPrevPage
-                      ? 'text-blue-600 hover:text-blue-800 hover:bg-blue-50'
-                      : 'text-gray-400 cursor-not-allowed'
+                      ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900/20'
+                      : 'text-gray-600 cursor-not-allowed'
                   }`}
                   aria-disabled={!hasPrevPage}
                 >
@@ -418,7 +568,7 @@ export default async function Home({ searchParams }: PageProps) {
                         className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
                           isActive
                             ? 'bg-blue-600 text-white'
-                            : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50'
+                            : 'text-gray-300 hover:text-blue-400 hover:bg-blue-900/20'
                         }`}
                       >
                         {pageNum}
@@ -431,8 +581,8 @@ export default async function Home({ searchParams }: PageProps) {
                   href={hasNextPage ? buildUrl(currentPage + 1) : '#'}
                   className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
                     hasNextPage
-                      ? 'text-blue-600 hover:text-blue-800 hover:bg-blue-50'
-                      : 'text-gray-400 cursor-not-allowed'
+                      ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900/20'
+                      : 'text-gray-600 cursor-not-allowed'
                   }`}
                   aria-disabled={!hasNextPage}
                 >
