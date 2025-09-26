@@ -2,6 +2,9 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { getMCCCategory, CATEGORY_ICONS } from './mcc-mapping';
 import MonthlySpendingChart from './components/MonthlySpendingChart';
+import TransactionList from './components/TransactionList';
+import MonthlySpendingSection from './components/MonthlySpendingSection';
+import FoodSavingsInsight from './components/OpportunityCostVisualizer';
 
 interface Transaction {
   CardId: string;
@@ -83,8 +86,8 @@ async function getExchangeRates(): Promise<Record<string, number>> {
   }
 }
 
-function formatAmount(amount: string, currency: string, exchangeRates: Record<string, number> = {}): string {
-  const numAmount = parseFloat(amount);
+function formatAmount(amount: string, currency: string, exchangeRates: Record<string, number> = {}): React.JSX.Element | string {
+  const numAmount = parseFloat(amount) * -1;
   if (isNaN(numAmount)) return amount;
   
   const currencySymbol = CURRENCY_CODES[currency] || currency;
@@ -95,7 +98,7 @@ function formatAmount(amount: string, currency: string, exchangeRates: Record<st
   }
   
   const chfAmount = numAmount * exchangeRates[currency];
-  return `${baseFormat} (${chfAmount.toFixed(2)} CHF)`;
+  return <div>{chfAmount.toFixed(2)} CHF<br/><span className="text-gray-400">{baseFormat}</span></div>
 }
 
 function formatDate(dateStr: string): string {
@@ -111,7 +114,7 @@ function formatDate(dateStr: string): string {
 }
 
 interface PageProps {
-  searchParams: Promise<{ page?: string; cards?: string; sort?: 'newest' | 'oldest' }>;
+  searchParams: Promise<{ limit?: string; cards?: string; sort?: 'newest' | 'oldest' }>;
 }
 
 interface CardInfo {
@@ -132,16 +135,18 @@ interface MonthlySpending {
 
 export default async function Home({ searchParams }: PageProps) {
   const params = await searchParams;
-  const currentPage = parseInt(params.page || '1', 10);
+  const limit = parseInt(params.limit || '50', 10);
   const selectedCards = params.cards ? params.cards.split(',').filter(Boolean) : [];
   const sortOrder = params.sort || 'newest';
   const itemsPerPage = 50;
   
   let transactions: Transaction[] = [];
+  let allSortedTransactions: Transaction[] = [];
   let totalTransactions = 0;
   let exchangeRates: Record<string, number> = {};
   let cardStats: CardInfo[] = [];
   let monthlySpending: MonthlySpending[] = [];
+  let foodDiningLast12Months = 0;
   
   try {
     const filePath = path.join(process.cwd(), 'data', 'data.csv');
@@ -179,7 +184,7 @@ export default async function Home({ searchParams }: PageProps) {
       : allTransactions;
     
     // Sort transactions chronologically
-    const sortedTransactions = [...filteredTransactions].sort((a, b) => {
+    allSortedTransactions = [...filteredTransactions].sort((a, b) => {
       const dateA = new Date(a.trx_date);
       const dateB = new Date(b.trx_date);
       return sortOrder === 'newest' 
@@ -187,11 +192,9 @@ export default async function Home({ searchParams }: PageProps) {
         : dateA.getTime() - dateB.getTime();
     });
     
-    totalTransactions = sortedTransactions.length;
+    totalTransactions = allSortedTransactions.length;
     
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    transactions = sortedTransactions.slice(startIndex, endIndex);
+    transactions = allSortedTransactions.slice(0, Math.min(limit, 50)); // Initial load
     
     exchangeRates = await getExchangeRates();
     
@@ -244,17 +247,34 @@ export default async function Home({ searchParams }: PageProps) {
       return b.year - a.year || (new Date(`${b.month} 1`).getMonth() - new Date(`${a.month} 1`).getMonth());
     });
     
+    // Calculate current month spending
+    const currentDate = new Date();
+    const currentMonthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+    const currentMonthData = monthlyData.get(currentMonthKey);
+    
+    if (currentMonthData) {
+      currentMonthSpending = {
+        categories: currentMonthData.categories,
+        totalCHF: currentMonthData.totalCHF
+      };
+    }
+    
+    // Calculate Food & Dining spending over last 12 months
+    const last12MonthsData = monthlySpending.slice(0, 12);
+    foodDiningLast12Months = last12MonthsData.reduce((total, month) => {
+      return total + (month.categories['Food & Dining'] || 0);
+    }, 0);
+    
   } catch (error) {
     console.error('Error reading CSV file:', error);
   }
   
-  const totalPages = Math.ceil(totalTransactions / itemsPerPage);
-  const hasNextPage = currentPage < totalPages;
-  const hasPrevPage = currentPage > 1;
+  const hasMoreTransactions = limit < totalTransactions;
   
-  const buildUrl = (page?: number, cards?: string[], sort?: string) => {
+  const buildUrl = (newLimit?: number, cards?: string[], sort?: string) => {
     const params = new URLSearchParams();
-    if (page && page > 1) params.set('page', page.toString());
+    const limitToUse = newLimit !== undefined ? newLimit : limit;
+    if (limitToUse > 50) params.set('limit', limitToUse.toString());
     const cardsToUse = cards !== undefined ? cards : selectedCards;
     if (cardsToUse.length > 0) params.set('cards', cardsToUse.join(','));
     const sortToUse = sort !== undefined ? sort : sortOrder;
@@ -266,21 +286,21 @@ export default async function Home({ searchParams }: PageProps) {
     const newCards = selectedCards.includes(cardId)
       ? selectedCards.filter(id => id !== cardId)
       : [...selectedCards, cardId];
-    return buildUrl(1, newCards);
+    return buildUrl(50, newCards);
   };
 
   const removeCard = (cardId: string) => {
     const newCards = selectedCards.filter(id => id !== cardId);
-    return buildUrl(currentPage, newCards);
+    return buildUrl(limit, newCards);
   };
 
   const toggleSort = () => {
-    return buildUrl(1, selectedCards, sortOrder === 'newest' ? 'oldest' : 'newest');
+    return buildUrl(50, selectedCards, sortOrder === 'newest' ? 'oldest' : 'newest');
   };
 
   return (
     <div className="min-h-screen bg-black py-8 px-4">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-white">Transaction History</h1>
@@ -292,18 +312,18 @@ export default async function Home({ searchParams }: PageProps) {
                   </span>
                   <a 
                     href="/" 
-                    className="text-sm text-blue-400 hover:text-blue-300 underline"
+                    className="text-sm text-white hover:text-gray-300 underline"
                   >
                     Clear all filters
                   </a>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {selectedCards.map((cardId) => (
-                    <div key={cardId} className="flex items-center bg-blue-900 text-blue-200 px-2 py-1 rounded text-sm">
+                    <div key={cardId} className="flex items-center bg-gray-700 text-white px-2 py-1 rounded text-sm">
                       <span className="font-mono mr-2">{cardId}</span>
                       <a 
                         href={removeCard(cardId)}
-                        className="text-blue-300 hover:text-blue-100 font-bold text-xs"
+                        className="text-gray-300 hover:text-white font-bold text-xs"
                         title={`Remove ${cardId}`}
                       >
                         ×
@@ -315,7 +335,7 @@ export default async function Home({ searchParams }: PageProps) {
             )}
           </div>
           <div className="text-sm text-gray-400">
-            Page {currentPage} of {totalPages}
+            Showing {transactions.length} of {totalTransactions} transactions
           </div>
         </div>
         
@@ -337,8 +357,8 @@ export default async function Home({ searchParams }: PageProps) {
                   href={toggleCard(card.id)}
                   className={`bg-gray-800 p-4 rounded-lg shadow-sm border transition-all duration-200 ${
                     isSelected
-                      ? 'border-blue-500 bg-blue-900/20 shadow-md'
-                      : 'border-gray-700 hover:shadow-md hover:border-blue-400'
+                      ? 'border-white bg-gray-600 shadow-md'
+                      : 'border-gray-700 hover:shadow-md hover:border-gray-400'
                   }`}
                 >
                   <div className="flex items-start justify-between mb-2">
@@ -347,11 +367,11 @@ export default async function Home({ searchParams }: PageProps) {
                     </div>
                     <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
                       isSelected
-                        ? 'border-blue-400 bg-blue-500'
+                        ? 'border-white bg-white'
                         : 'border-gray-600'
                     }`}>
                       {isSelected && (
-                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <svg className="w-3 h-3 text-black" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                       )}
@@ -373,7 +393,7 @@ export default async function Home({ searchParams }: PageProps) {
           </div>
         </div>
         
-        {monthlySpending.length > 0 && (
+        {/* {monthlySpending.length > 0 && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold text-white mb-4">
               Monthly Spending {selectedCards.length > 0 ? '(Filtered Cards)' : '(All Cards)'}
@@ -412,7 +432,7 @@ export default async function Home({ searchParams }: PageProps) {
                                   <div className="flex items-center gap-1.5 flex-1">
                                     {(() => {
                                       const IconComponent = CATEGORY_ICONS[category as keyof typeof CATEGORY_ICONS];
-                                      return <IconComponent className="w-3 h-3 text-gray-400" />;
+                                      return <IconComponent className="w-3 h-3 text-white" />;
                                     })()}
                                     <span className="text-xs text-gray-400 truncate">{category}</span>
                                   </div>
@@ -450,147 +470,34 @@ export default async function Home({ searchParams }: PageProps) {
               </div>
             </div>
           </div>
-        )}
+        )} */}
+
+        {/* <FoodSavingsInsight totalFoodSpending={foodDiningLast12Months} /> */}
+        <MonthlySpendingSection monthlySpendingData={monthlySpending} />
         
-        <div className="bg-gray-800 shadow-sm rounded-lg overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-700 bg-gray-900">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium text-white">Transactions</h3>
-              <a
-                href={toggleSort()}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 rounded-md transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  {sortOrder === 'newest' ? (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4" />
-                  ) : (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v18" />
-                  )}
-                </svg>
-                Sort: {sortOrder === 'newest' ? 'Newest First' : 'Oldest First'}
-              </a>
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-700">
-              <thead className="bg-gray-900">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Description</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Location</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Category</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Card Present</th>
-                </tr>
-              </thead>
-              <tbody className="bg-gray-800 divide-y divide-gray-700">
-                {transactions.map((transaction, index) => (
-                  <tr key={index} className="hover:bg-gray-700">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
-                      {formatDate(transaction.trx_date)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-white capitalize">
-                      {transaction.trx_desc}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
-                      {formatAmount(transaction.trx_amount, transaction.trx_currency, exchangeRates)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                      {transaction.trx_city}, {transaction.trx_country}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-900 text-blue-200">
-                        {(() => {
-                          const category = getMCCCategory(transaction.trx_mcc).category;
-                          const IconComponent = CATEGORY_ICONS[category as keyof typeof CATEGORY_ICONS];
-                          return (
-                            <>
-                              <IconComponent className="w-3 h-3" />
-                              {category}
-                            </>
-                          );
-                        })()}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        transaction.IsCardPresent === 'TRUE' 
-                          ? 'bg-green-900 text-green-200' 
-                          : 'bg-yellow-900 text-yellow-200'
-                      }`}>
-                        {transaction.IsCardPresent === 'TRUE' ? 'Present' : 'Not Present'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-3xl font-light text-white">Transactions</h3>
+            {/* <a
+              href={toggleSort()}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white hover:text-gray-300 hover:bg-gray-800 rounded-md transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {sortOrder === 'newest' ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v18" />
+                )}
+              </svg>
+              Sort: {sortOrder === 'newest' ? 'Newest First' : 'Oldest First'}
+            </a> */}
           </div>
           
-          <div className="bg-gray-900 px-6 py-3 border-t border-gray-700">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-400">
-                Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalTransactions)} of {totalTransactions} transactions
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <a
-                  href={hasPrevPage ? buildUrl(currentPage - 1) : '#'}
-                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                    hasPrevPage
-                      ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900/20'
-                      : 'text-gray-600 cursor-not-allowed'
-                  }`}
-                  aria-disabled={!hasPrevPage}
-                >
-                  ← Previous
-                </a>
-                
-                <div className="flex items-center space-x-1">
-                  {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-                    let pageNum;
-                    if (totalPages <= 7) {
-                      pageNum = i + 1;
-                    } else if (currentPage <= 4) {
-                      pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 3) {
-                      pageNum = totalPages - 6 + i;
-                    } else {
-                      pageNum = currentPage - 3 + i;
-                    }
-                    
-                    const isActive = pageNum === currentPage;
-                    
-                    return (
-                      <a
-                        key={pageNum}
-                        href={buildUrl(pageNum)}
-                        className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                          isActive
-                            ? 'bg-blue-600 text-white'
-                            : 'text-gray-300 hover:text-blue-400 hover:bg-blue-900/20'
-                        }`}
-                      >
-                        {pageNum}
-                      </a>
-                    );
-                  })}
-                </div>
-                
-                <a
-                  href={hasNextPage ? buildUrl(currentPage + 1) : '#'}
-                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                    hasNextPage
-                      ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900/20'
-                      : 'text-gray-600 cursor-not-allowed'
-                  }`}
-                  aria-disabled={!hasNextPage}
-                >
-                  Next →
-                </a>
-              </div>
-            </div>
-          </div>
+          <TransactionList 
+            initialTransactions={transactions}
+            allTransactions={allSortedTransactions}
+            exchangeRates={exchangeRates}
+          />
         </div>
       </div>
     </div>

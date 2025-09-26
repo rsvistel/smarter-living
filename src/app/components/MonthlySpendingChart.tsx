@@ -12,8 +12,8 @@ interface MonthlySpendingChartProps {
 
 const ChartContainer = styled(Box)({
   position: 'relative',
-  width: '100%',
-  minHeight: '200px',
+  width: '300px',
+  height: '200px',
 });
 
 const CenterLabel = styled(Box)({
@@ -26,6 +26,13 @@ const CenterLabel = styled(Box)({
 });
 
 export default function MonthlySpendingChart({ categories, totalAmount }: MonthlySpendingChartProps) {
+  // Generate consistent colors for each category
+  const colors = [
+    '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6',
+    '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1',
+    '#14B8A6', '#F43F5E', '#8B5A3C', '#6B7280', '#9CA3AF'
+  ];
+
   const chartData = Object.entries(categories)
     .sort(([,a], [,b]) => b - a)
     .map(([category, amount], index) => {
@@ -35,7 +42,8 @@ export default function MonthlySpendingChart({ categories, totalAmount }: Monthl
         value: amount,
         label: category.split(' ')[0], // Shortened label
         category: category,
-        icon: IconComponent
+        icon: IconComponent,
+        color: colors[index % colors.length]
       };
     });
 
@@ -73,10 +81,10 @@ export default function MonthlySpendingChart({ categories, totalAmount }: Monthl
       />
       <CenterLabel>
         <div style={{ color: '#FFFFFF', fontSize: '18px', fontWeight: 'bold' }}>
-          {totalAmount.toFixed(0)}
+          {totalAmount.toFixed(0)} CHF
         </div>
         <div style={{ color: '#9CA3AF', fontSize: '12px' }}>
-          CHF
+          spent
         </div>
       </CenterLabel>
     </ChartContainer>
