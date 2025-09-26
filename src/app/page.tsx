@@ -109,7 +109,7 @@ function formatDate(dateStr: string): string {
 }
 
 interface PageProps {
-  searchParams: Promise<{ page?: string; card?: string }>;
+  searchParams: Promise<{ page?: string; cards?: string; sort?: 'newest' | 'oldest' }>;
 }
 
 interface CardInfo {
@@ -122,7 +122,8 @@ interface CardInfo {
 export default async function Home({ searchParams }: PageProps) {
   const params = await searchParams;
   const currentPage = parseInt(params.page || '1', 10);
-  const selectedCard = params.card;
+  const selectedCards = params.cards ? params.cards.split(',').filter(Boolean) : [];
+  const sortOrder = params.sort || 'newest';
   const itemsPerPage = 50;
   
   let transactions: Transaction[] = [];
@@ -160,16 +161,25 @@ export default async function Home({ searchParams }: PageProps) {
     
     cardStats = Array.from(cardMap.values()).sort((a, b) => b.transactionCount - a.transactionCount);
     
-    // Filter transactions by selected card if specified
-    const filteredTransactions = selectedCard 
-      ? allTransactions.filter(t => t.CardId === selectedCard)
+    // Filter transactions by selected cards if specified
+    const filteredTransactions = selectedCards.length > 0
+      ? allTransactions.filter(t => selectedCards.includes(t.CardId))
       : allTransactions;
     
-    totalTransactions = filteredTransactions.length;
+    // Sort transactions chronologically
+    const sortedTransactions = [...filteredTransactions].sort((a, b) => {
+      const dateA = new Date(a.trx_date);
+      const dateB = new Date(b.trx_date);
+      return sortOrder === 'newest' 
+        ? dateB.getTime() - dateA.getTime()
+        : dateA.getTime() - dateB.getTime();
+    });
+    
+    totalTransactions = sortedTransactions.length;
     
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    transactions = filteredTransactions.slice(startIndex, endIndex);
+    transactions = sortedTransactions.slice(startIndex, endIndex);
     
     exchangeRates = await getExchangeRates();
   } catch (error) {
@@ -180,11 +190,30 @@ export default async function Home({ searchParams }: PageProps) {
   const hasNextPage = currentPage < totalPages;
   const hasPrevPage = currentPage > 1;
   
-  const buildUrl = (page?: number) => {
+  const buildUrl = (page?: number, cards?: string[], sort?: string) => {
     const params = new URLSearchParams();
     if (page && page > 1) params.set('page', page.toString());
-    if (selectedCard) params.set('card', selectedCard);
+    const cardsToUse = cards !== undefined ? cards : selectedCards;
+    if (cardsToUse.length > 0) params.set('cards', cardsToUse.join(','));
+    const sortToUse = sort !== undefined ? sort : sortOrder;
+    if (sortToUse !== 'newest') params.set('sort', sortToUse);
     return `/?${params.toString()}`;
+  };
+
+  const toggleCard = (cardId: string) => {
+    const newCards = selectedCards.includes(cardId)
+      ? selectedCards.filter(id => id !== cardId)
+      : [...selectedCards, cardId];
+    return buildUrl(1, newCards);
+  };
+
+  const removeCard = (cardId: string) => {
+    const newCards = selectedCards.filter(id => id !== cardId);
+    return buildUrl(currentPage, newCards);
+  };
+
+  const toggleSort = () => {
+    return buildUrl(1, selectedCards, sortOrder === 'newest' ? 'oldest' : 'newest');
   };
 
   return (
@@ -193,18 +222,33 @@ export default async function Home({ searchParams }: PageProps) {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Transaction History</h1>
-            {selectedCard && (
-              <div className="mt-2 flex items-center gap-2">
-                <span className="text-sm text-gray-500">Filtered by card:</span>
-                <span className="font-mono text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                  {selectedCard}
-                </span>
-                <a 
-                  href="/" 
-                  className="text-sm text-blue-600 hover:text-blue-800 underline"
-                >
-                  Clear filter
-                </a>
+            {selectedCards.length > 0 && (
+              <div className="mt-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-sm text-gray-500">
+                    Filtered by {selectedCards.length} card{selectedCards.length !== 1 ? 's' : ''}:
+                  </span>
+                  <a 
+                    href="/" 
+                    className="text-sm text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Clear all filters
+                  </a>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {selectedCards.map((cardId) => (
+                    <div key={cardId} className="flex items-center bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">
+                      <span className="font-mono mr-2">{cardId}</span>
+                      <a 
+                        href={removeCard(cardId)}
+                        className="text-blue-600 hover:text-blue-800 font-bold text-xs"
+                        title={`Remove ${cardId}`}
+                      >
+                        ×
+                      </a>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -213,18 +257,43 @@ export default async function Home({ searchParams }: PageProps) {
           </div>
         </div>
         
-        {!selectedCard && (
-          <div className="mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Select a Card</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {cardStats.map((card) => (
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Select Cards</h2>
+            {selectedCards.length > 0 && (
+              <div className="text-sm text-gray-500">
+                {selectedCards.length} card{selectedCards.length !== 1 ? 's' : ''} selected
+              </div>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {cardStats.map((card) => {
+              const isSelected = selectedCards.includes(card.id);
+              return (
                 <a
                   key={card.id}
-                  href={`/?card=${card.id}`}
-                  className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md hover:border-blue-300 transition-all duration-200"
+                  href={toggleCard(card.id)}
+                  className={`bg-white p-4 rounded-lg shadow-sm border transition-all duration-200 ${
+                    isSelected
+                      ? 'border-blue-500 bg-blue-50 shadow-md'
+                      : 'border-gray-200 hover:shadow-md hover:border-blue-300'
+                  }`}
                 >
-                  <div className="font-mono text-sm font-medium text-gray-900 mb-2">
-                    {card.id}
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="font-mono text-sm font-medium text-gray-900">
+                      {card.id}
+                    </div>
+                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                      isSelected
+                        ? 'border-blue-500 bg-blue-500'
+                        : 'border-gray-300'
+                    }`}>
+                      {isSelected && (
+                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </div>
                   </div>
                   <div className="text-sm text-gray-600 space-y-1">
                     <div className="flex justify-between">
@@ -237,12 +306,30 @@ export default async function Home({ searchParams }: PageProps) {
                     </div>
                   </div>
                 </a>
-              ))}
-            </div>
+              );
+            })}
           </div>
-        )}
+        </div>
         
         <div className="bg-white shadow-sm rounded-lg overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium text-gray-900">Transactions</h3>
+              <a
+                href={toggleSort()}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {sortOrder === 'newest' ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v18" />
+                  )}
+                </svg>
+                Sort: {sortOrder === 'newest' ? 'Newest First' : 'Oldest First'}
+              </a>
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
