@@ -1,0 +1,16 @@
+{
+  "name": "smarter-backend",
+  "version": "1.0.0",
+  "description": "Simple Node.js backend with hello world endpoint",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "@scalar/express-api-reference": "^0.8.19",
+    "csv-parser": "^3.2.0",
+    "express": "^4.18.2",
+    "swagger-jsdoc": "^6.2.8"
+  }
+}
