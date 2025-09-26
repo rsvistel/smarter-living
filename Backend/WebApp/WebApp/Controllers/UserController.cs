@@ -93,6 +93,23 @@ public class UserController(ISimpleRepository repository) : ControllerBase
         }
         return NoContent();
     }
+
+    [HttpGet("{userId}/transactions-by-cards")]
+    public async Task<ActionResult<UserTransactionsByCardsResponse>> GetUserTransactionsByCards(
+        int userId,
+        [FromQuery] bool includeInactive = false,
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null)
+    {
+        var result = await repository.GetUserTransactionsByCardsAsync(userId, includeInactive, fromDate, toDate);
+
+        if (result == null)
+        {
+            return NotFound($"User with ID {userId} not found");
+        }
+
+        return Ok(result);
+    }
 }
 
 public class CreateUserRequest

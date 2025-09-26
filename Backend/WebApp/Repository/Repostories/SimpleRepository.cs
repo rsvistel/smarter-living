@@ -143,4 +143,85 @@ public class SimpleRepository(ApplicationDbContext context, IMapper mapper ) : I
         await context.SaveChangesAsync();
         return true;
     }
+
+    public async Task<UserTransactionsByCardsResponse?> GetUserTransactionsByCardsAsync(int userId, bool includeInactive = false, DateTime? fromDate = null, DateTime? toDate = null)
+    {
+        // Get user details
+        var user = await context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null)
+        {
+            return null;
+        }
+
+        // Get user's cards
+        var userCardsQuery = context.UserCards.Where(uc => uc.UserId == userId);
+        if (!includeInactive)
+        {
+            userCardsQuery = userCardsQuery.Where(uc => uc.IsActive);
+        }
+
+        var userCards = await userCardsQuery
+            .OrderBy(uc => uc.CreatedAt)
+            .ToListAsync();
+
+        if (!userCards.Any())
+        {
+            return new UserTransactionsByCardsResponse
+            {
+                UserId = userId,
+                UserName = user.Name,
+                UserEmail = user.Email,
+                Cards = new List<UserCardWithTransactionsModel>(),
+                ReportGeneratedAt = DateTime.UtcNow
+            };
+        }
+
+        // Get card IDs for transaction lookup
+        var cardIds = userCards.Select(uc => uc.CardId).ToList();
+
+        // Get transactions for these cards
+        var transactionsQuery = context.Transactions.Where(t => cardIds.Contains(t.CardId));
+
+        // Apply date filters if provided
+        if (fromDate.HasValue)
+        {
+            transactionsQuery = transactionsQuery.Where(t => t.TransactionDate >= fromDate.Value);
+        }
+        if (toDate.HasValue)
+        {
+            transactionsQuery = transactionsQuery.Where(t => t.TransactionDate <= toDate.Value);
+        }
+
+        var transactions = await transactionsQuery
+            .OrderByDescending(t => t.TransactionDate)
+            .ToListAsync();
+
+        // Group transactions by card
+        var transactionsByCard = transactions
+            .GroupBy(t => t.CardId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(t => t.TransactionDate).ToList());
+
+        // Build the response
+        var cardsWithTransactions = userCards.Select(card => new UserCardWithTransactionsModel
+        {
+            Id = card.Id,
+            UserId = card.UserId,
+            CardId = card.CardId,
+            CardName = card.CardName,
+            IsActive = card.IsActive,
+            CreatedAt = card.CreatedAt,
+            Transactions = transactionsByCard.ContainsKey(card.CardId)
+                ? transactionsByCard[card.CardId].Select(mapper.Map).ToList()
+                : new List<TransactionModel>()
+        }).ToList();
+
+        return new UserTransactionsByCardsResponse
+        {
+            UserId = userId,
+            UserName = user.Name,
+            UserEmail = user.Email,
+            Cards = cardsWithTransactions,
+            ReportGeneratedAt = DateTime.UtcNow
+        };
+    }
 }

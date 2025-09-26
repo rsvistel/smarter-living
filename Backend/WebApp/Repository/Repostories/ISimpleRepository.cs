@@ -15,4 +15,5 @@ public interface ISimpleRepository
     public Task<UserCardModel?> GetUserCardAsync(int userId, string cardId);
     public Task<bool> RemoveCardFromUserAsync(int userId, string cardId);
     public Task<UserModel?> GetUserByIdAsync(int userId);
+    public Task<UserTransactionsByCardsResponse?> GetUserTransactionsByCardsAsync(int userId, bool includeInactive = false, DateTime? fromDate = null, DateTime? toDate = null);
 }
