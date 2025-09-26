@@ -6,8 +6,16 @@ using WebApp.Data;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+// Handle Railway/Cloud database URL format
+if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DATABASE_URL")))
+{
+    connectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
+}
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"),
+    options.UseNpgsql(connectionString,
         b => b.MigrationsAssembly("WebApp")));
 
 builder.Services.AddScoped<ISimpleRepository, SimpleRepository>();
@@ -28,9 +36,16 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// Only use HTTPS redirection in development - cloud platforms handle this
+if (app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseAuthorization();
+
+// Health check endpoint
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
 
 app.MapControllers();
 
