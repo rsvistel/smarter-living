@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { CATEGORY_ICONS } from '../mcc-mapping';
 import MonthlySpendingChart from './MonthlySpendingChart';
-import { WandSparkles } from 'lucide-react';
+import { WandSparkles, Leaf, Car, Bike, Bus, ShoppingBag, UtensilsCrossed, Home, Recycle, Smartphone, BookOpen, Zap, Shield, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface MonthlySpending {
   month: string;
@@ -16,10 +16,13 @@ interface MonthlySpending {
 
 interface MonthlySpendingSectionProps {
   monthlySpendingData: MonthlySpending[];
+  allTransactions?: any[];
+  exchangeRates?: Record<string, number>;
 }
 
-export default function MonthlySpendingSection({ monthlySpendingData }: MonthlySpendingSectionProps) {
+export default function MonthlySpendingSection({ monthlySpendingData, allTransactions = [], exchangeRates = {} }: MonthlySpendingSectionProps) {
   const [currentMonthIndex, setCurrentMonthIndex] = useState(0);
+  const [showAllTips, setShowAllTips] = useState(false);
 
   if (!monthlySpendingData || monthlySpendingData.length === 0) {
     return null;
@@ -28,6 +31,21 @@ export default function MonthlySpendingSection({ monthlySpendingData }: MonthlyS
   const currentMonth = monthlySpendingData[currentMonthIndex];
   const canGoPrev = currentMonthIndex < monthlySpendingData.length - 1;
   const canGoNext = currentMonthIndex > 0;
+
+  // Get transactions for the current month only
+  const getCurrentMonthTransactions = () => {
+    if (!allTransactions.length) return [];
+    
+    const currentMonthKey = `${currentMonth.year}-${String(new Date(`${currentMonth.month} 1`).getMonth() + 1).padStart(2, '0')}`;
+    
+    return allTransactions.filter(transaction => {
+      const transactionDate = new Date(transaction.trx_date);
+      const transactionMonthKey = `${transactionDate.getFullYear()}-${String(transactionDate.getMonth() + 1).padStart(2, '0')}`;
+      return transactionMonthKey === currentMonthKey;
+    });
+  };
+
+  const currentMonthTransactions = getCurrentMonthTransactions();
 
   const goToPrevMonth = () => {
     if (canGoPrev) {
@@ -38,6 +56,590 @@ export default function MonthlySpendingSection({ monthlySpendingData }: MonthlyS
   const goToNextMonth = () => {
     if (canGoNext) {
       setCurrentMonthIndex(currentMonthIndex - 1);
+    }
+  };
+
+  // Calculate expenses for current month
+  const calculateExpenses = (mccCodes: string[]) => {
+    if (!currentMonthTransactions.length) return 0;
+    
+    const relevantTransactions = currentMonthTransactions.filter(transaction => 
+      mccCodes.includes(transaction.trx_mcc)
+    );
+
+    return relevantTransactions.reduce((total, transaction) => {
+      let amount = Math.abs(parseFloat(transaction.trx_amount) || 0);
+      
+      // Convert to CHF if needed
+      if (transaction.trx_currency !== '756' && exchangeRates[transaction.trx_currency]) {
+        amount = amount * exchangeRates[transaction.trx_currency];
+      }
+      
+      return total + amount;
+    }, 0);
+  };
+
+  const monthlyParkingExpenses = calculateExpenses(['7523']); // Parking
+  const monthlyFuelExpenses = calculateExpenses(['5541', '5542']); // Gas stations
+  
+  // Check for meal delivery expenses
+  const calculateMealDeliveryExpenses = () => {
+    if (!currentMonthTransactions.length) return 0;
+    
+    const deliveryTransactions = currentMonthTransactions.filter(transaction => {
+      const description = transaction.trx_desc?.toLowerCase() || '';
+      const mcc = transaction.trx_mcc;
+      const isCardNotPresent = transaction.IsCardPresent === 'FALSE' || transaction.IsCardPresent === 'False';
+      
+      // Detect Uber Eats and other delivery services
+      const isUberEats = description.includes('uber') && description.includes('eats');
+      const isDeliveryService = description.includes('deliveroo') || 
+                              description.includes('doordash') || 
+                              description.includes('grubhub') || 
+                              description.includes('just eat') ||
+                              description.includes('foodpanda') ||
+                              description.includes('delivery');
+      
+      // Uber Eats specific pattern: MCC 4121 or 5812, card not present
+      const isUberEatsPattern = isUberEats && (mcc === '4121' || mcc === '5812') && isCardNotPresent;
+      
+      // General delivery pattern: delivery keywords with restaurant MCC and card not present
+      const isGeneralDelivery = isDeliveryService && mcc === '5812' && isCardNotPresent;
+      
+      return isUberEatsPattern || isGeneralDelivery;
+    });
+
+    return deliveryTransactions.reduce((total, transaction) => {
+      let amount = Math.abs(parseFloat(transaction.trx_amount) || 0);
+      
+      // Convert to CHF if needed
+      if (transaction.trx_currency !== '756' && exchangeRates[transaction.trx_currency]) {
+        amount = amount * exchangeRates[transaction.trx_currency];
+      }
+      
+      return total + amount;
+    }, 0);
+  };
+
+  const monthlyMealDeliveryExpenses = calculateMealDeliveryExpenses();
+  
+  // Check for IKEA purchases
+  const calculateIKEAExpenses = () => {
+    if (!currentMonthTransactions.length) return 0;
+    
+    const ikeaTransactions = currentMonthTransactions.filter(transaction => {
+      const description = transaction.trx_desc?.toLowerCase() || '';
+      const city = transaction.trx_city?.toLowerCase() || '';
+      
+      // Detect IKEA purchases by description or merchant name
+      return description.includes('ikea') || city.includes('ikea');
+    });
+
+    return ikeaTransactions.reduce((total, transaction) => {
+      let amount = Math.abs(parseFloat(transaction.trx_amount) || 0);
+      
+      // Convert to CHF if needed
+      if (transaction.trx_currency !== '756' && exchangeRates[transaction.trx_currency]) {
+        amount = amount * exchangeRates[transaction.trx_currency];
+      }
+      
+      return total + amount;
+    }, 0);
+  };
+
+  const monthlyIKEAExpenses = calculateIKEAExpenses();
+  
+  // Check for digital goods/subscription expenses
+  const calculateDigitalSubscriptionExpenses = () => {
+    if (!currentMonthTransactions.length) return 0;
+    
+    const digitalTransactions = currentMonthTransactions.filter(transaction => {
+      const mcc = transaction.trx_mcc;
+      const description = transaction.trx_desc?.toLowerCase() || '';
+      
+      // Digital goods MCC codes
+      const digitalGoodsMCCs = ['5815', '5816', '5817', '5818', '5968'];
+      
+      // Common subscription service patterns
+      const subscriptionKeywords = [
+        'netflix', 'spotify', 'apple music', 'amazon prime', 'disney',
+        'youtube premium', 'adobe', 'microsoft', 'google', 'dropbox',
+        'icloud', 'subscription', 'monthly', 'annual'
+      ];
+      
+      const isMCCDigital = digitalGoodsMCCs.includes(mcc);
+      const hasSubscriptionKeyword = subscriptionKeywords.some(keyword => 
+        description.includes(keyword)
+      );
+      
+      return isMCCDigital || hasSubscriptionKeyword;
+    });
+
+    return digitalTransactions.reduce((total, transaction) => {
+      let amount = Math.abs(parseFloat(transaction.trx_amount) || 0);
+      
+      // Convert to CHF if needed
+      if (transaction.trx_currency !== '756' && exchangeRates[transaction.trx_currency]) {
+        amount = amount * exchangeRates[transaction.trx_currency];
+      }
+      
+      return total + amount;
+    }, 0);
+  };
+
+  const monthlyDigitalSubscriptionExpenses = calculateDigitalSubscriptionExpenses();
+  
+  // Check for book purchases (only for past months, not current month)
+  const calculateBookExpenses = () => {
+    if (!currentMonthTransactions.length) return 0;
+    
+    // Check if this is the current month
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const viewingMonthKey = `${currentMonth.year}-${String(new Date(`${currentMonth.month} 1`).getMonth() + 1).padStart(2, '0')}`;
+    
+    // Only show for past months, not current month
+    if (currentMonthKey === viewingMonthKey) return 0;
+    
+    const bookTransactions = currentMonthTransactions.filter(transaction => {
+      const mcc = transaction.trx_mcc;
+      const description = transaction.trx_desc?.toLowerCase() || '';
+      
+      // Book store MCC codes
+      const bookMCCs = ['5192', '5942']; // Books/Periodicals/Newspapers, Book Stores
+      
+      // Common bookstore keywords
+      const bookstoreKeywords = [
+        'bookstore', 'book store', 'barnes', 'waterstones', 'amazon books',
+        'thalia', 'fnac', 'library', 'buchhandlung', 'librairie'
+      ];
+      
+      const isMCCBook = bookMCCs.includes(mcc);
+      const hasBookKeyword = bookstoreKeywords.some(keyword => 
+        description.includes(keyword)
+      );
+      
+      return isMCCBook || hasBookKeyword;
+    });
+
+    return bookTransactions.reduce((total, transaction) => {
+      let amount = Math.abs(parseFloat(transaction.trx_amount) || 0);
+      
+      // Convert to CHF if needed
+      if (transaction.trx_currency !== '756' && exchangeRates[transaction.trx_currency]) {
+        amount = amount * exchangeRates[transaction.trx_currency];
+      }
+      
+      return total + amount;
+    }, 0);
+  };
+
+  const monthlyBookExpenses = calculateBookExpenses();
+  
+  // Check for electronics purchases
+  const calculateElectronicsExpenses = () => {
+    if (!currentMonthTransactions.length) return 0;
+    
+    const electronicsTransactions = currentMonthTransactions.filter(transaction => {
+      const mcc = transaction.trx_mcc;
+      const description = transaction.trx_desc?.toLowerCase() || '';
+      
+      // Electronics MCC codes
+      const electronicsMCCs = ['5045', '5732', '5734']; // Computers, Electronics Stores, Software
+      
+      // Common electronics keywords
+      const electronicsKeywords = [
+        'apple store', 'best buy', 'media markt', 'saturn', 'fnac',
+        'digitec', 'galaxus', 'amazon', 'dell', 'hp', 'lenovo',
+        'samsung', 'sony', 'nintendo', 'playstation', 'xbox',
+        'iphone', 'ipad', 'macbook', 'laptop', 'smartphone',
+        'electronics', 'computer', 'tablet'
+      ];
+      
+      const isMCCElectronics = electronicsMCCs.includes(mcc);
+      const hasElectronicsKeyword = electronicsKeywords.some(keyword => 
+        description.includes(keyword)
+      );
+      
+      return isMCCElectronics || hasElectronicsKeyword;
+    });
+
+    return electronicsTransactions.reduce((total, transaction) => {
+      let amount = Math.abs(parseFloat(transaction.trx_amount) || 0);
+      
+      // Convert to CHF if needed
+      if (transaction.trx_currency !== '756' && exchangeRates[transaction.trx_currency]) {
+        amount = amount * exchangeRates[transaction.trx_currency];
+      }
+      
+      return total + amount;
+    }, 0);
+  };
+
+  const monthlyElectronicsExpenses = calculateElectronicsExpenses();
+  
+  // Check for bundling opportunities (multiple purchases per day at same store)
+  const checkBundlingOpportunities = () => {
+    if (!currentMonthTransactions.length) return { hasBundlingOpportunity: false, exampleStore: '', dayCount: 0 };
+    
+    // Group transactions by date and store name
+    const dailyStoreVisits = new Map<string, Set<string>>();
+    
+    currentMonthTransactions.forEach(transaction => {
+      const date = transaction.trx_date;
+      const storeName = transaction.trx_desc?.toLowerCase().trim() || '';
+      
+      // Skip if no store name or very short names (likely not actual stores)
+      if (!storeName || storeName.length < 3) return;
+      
+      const dateKey = date;
+      if (!dailyStoreVisits.has(dateKey)) {
+        dailyStoreVisits.set(dateKey, new Set());
+      }
+      dailyStoreVisits.get(dateKey)!.add(storeName);
+    });
+    
+    // Check for same store visits on same day
+    let bundlingDays = 0;
+    let exampleStore = '';
+    
+    for (const [date, stores] of dailyStoreVisits.entries()) {
+      const storeVisitCounts = new Map<string, number>();
+      
+      // Count visits to each store on this day
+      currentMonthTransactions
+        .filter(t => t.trx_date === date)
+        .forEach(transaction => {
+          const storeName = transaction.trx_desc?.toLowerCase().trim() || '';
+          if (storeName && storeName.length >= 3) {
+            storeVisitCounts.set(storeName, (storeVisitCounts.get(storeName) || 0) + 1);
+          }
+        });
+      
+      // Check if any store was visited multiple times on this day
+      for (const [store, count] of storeVisitCounts.entries()) {
+        if (count > 1) {
+          bundlingDays++;
+          if (!exampleStore) {
+            exampleStore = store;
+          }
+          break; // Only count this day once
+        }
+      }
+    }
+    
+    return {
+      hasBundlingOpportunity: bundlingDays > 0,
+      exampleStore,
+      dayCount: bundlingDays
+    };
+  };
+
+  const bundlingCheck = checkBundlingOpportunities();
+  
+  // Determine which CO2 tips to show
+  const allTips = [
+    {
+      id: 'bundling',
+      show: bundlingCheck.hasBundlingOpportunity,
+      component: 'bundling'
+    },
+    {
+      id: 'mealDelivery', 
+      show: monthlyMealDeliveryExpenses > 0,
+      component: 'mealDelivery'
+    },
+    {
+      id: 'ikea',
+      show: monthlyIKEAExpenses > 0,
+      component: 'ikea'
+    },
+    {
+      id: 'subscription',
+      show: monthlyDigitalSubscriptionExpenses > 0,
+      component: 'subscription'
+    },
+    {
+      id: 'book',
+      show: monthlyBookExpenses > 0,
+      component: 'book'
+    },
+    {
+      id: 'electronics',
+      show: monthlyElectronicsExpenses > 0,
+      component: 'electronics'
+    },
+    {
+      id: 'fuel',
+      show: monthlyFuelExpenses > 200,
+      component: 'fuel'
+    },
+    {
+      id: 'parking',
+      show: monthlyParkingExpenses > 15,
+      component: 'parking'
+    }
+  ];
+
+  const activeTips = allTips.filter(tip => tip.show);
+  const visibleTips = showAllTips ? activeTips : activeTips.slice(0, 2);
+  const hiddenTipsCount = activeTips.length - visibleTips.length;
+
+  // Function to render individual CO2 tip components
+  const renderTipComponent = (tipType: string) => {
+    const baseClasses = "mt-4 bg-green-900 p-4 border-l-4 border-green-400";
+    
+    switch (tipType) {
+      case 'bundling':
+        return (
+          <div className={baseClasses}>
+            <div className="flex items-center gap-3 mb-3">
+              <Leaf className="w-5 h-5 text-green-400" />
+              <h4 className="text-sm font-medium text-white">CO₂ Emission Tip</h4>
+            </div>
+            <div className="flex items-start gap-3">
+              <ShoppingBag className="w-4 h-4 text-gray-300 mt-1 flex-shrink-0" />
+              <div>
+                <p className="text-sm text-gray-200 mb-2">
+                  You made multiple trips to the same store on {bundlingCheck.dayCount} day{bundlingCheck.dayCount !== 1 ? 's' : ''} this month.
+                </p>
+                <p className="text-xs text-gray-300 mb-3">
+                  How about bundling and preplanning your purchase next time to save CO₂ and your leisurely time?
+                </p>
+                <div className="flex flex-wrap gap-3 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <ShoppingBag className="w-3 h-3 text-blue-400" />
+                    <span className="text-gray-300">Plan ahead</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Leaf className="w-3 h-3 text-green-400" />
+                    <span className="text-gray-300">Bundle purchases</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'mealDelivery':
+        return (
+          <div className={baseClasses}>
+            <div className="flex items-center gap-3 mb-3">
+              <Leaf className="w-5 h-5 text-green-400" />
+              <h4 className="text-sm font-medium text-white">CO₂ Emission Tip</h4>
+            </div>
+            <div className="flex items-start gap-3">
+              <UtensilsCrossed className="w-4 h-4 text-gray-300 mt-1 flex-shrink-0" />
+              <div>
+                <p className="text-sm text-gray-200 mb-2">
+                  You spent <span className="font-semibold text-green-400">{monthlyMealDeliveryExpenses.toFixed(0)} CHF</span> on meal deliveries this month.
+                </p>
+                <p className="text-xs text-gray-300 mb-3">
+                  Less meal deliveries - more grocery shopping! Better for your budget and better for the environment.
+                </p>
+                <div className="flex flex-wrap gap-3 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <ShoppingBag className="w-3 h-3 text-blue-400" />
+                    <span className="text-gray-300">Grocery shopping</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <UtensilsCrossed className="w-3 h-3 text-green-400" />
+                    <span className="text-gray-300">Home cooking</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'ikea':
+        return (
+          <div className={baseClasses}>
+            <div className="flex items-center gap-3 mb-3">
+              <Leaf className="w-5 h-5 text-green-400" />
+              <h4 className="text-sm font-medium text-white">CO₂ Emission Tip</h4>
+            </div>
+            <div className="flex items-start gap-3">
+              <Home className="w-4 h-4 text-gray-300 mt-1 flex-shrink-0" />
+              <div>
+                <p className="text-sm text-gray-200 mb-2">
+                  You spent <span className="font-semibold text-green-400">{monthlyIKEAExpenses.toFixed(0)} CHF</span> at IKEA this month.
+                </p>
+                <p className="text-xs text-gray-300 mb-3">
+                  Have you considered second hand furniture?
+                </p>
+                <div className="flex flex-wrap gap-3 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <Recycle className="w-3 h-3 text-blue-400" />
+                    <span className="text-gray-300">Second-hand</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Home className="w-3 h-3 text-green-400" />
+                    <span className="text-gray-300">Vintage finds</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'subscription':
+        return (
+          <div className={baseClasses}>
+            <div className="flex items-center gap-3 mb-3">
+              <Leaf className="w-5 h-5 text-green-400" />
+              <h4 className="text-sm font-medium text-white">CO₂ Emission Tip</h4>
+            </div>
+            <div className="flex items-start gap-3">
+              <Smartphone className="w-4 h-4 text-gray-300 mt-1 flex-shrink-0" />
+              <div>
+                <p className="text-sm text-gray-200 mb-2">
+                  You spent <span className="font-semibold text-green-400">{monthlyDigitalSubscriptionExpenses.toFixed(0)} CHF</span> on digital subscriptions this month.
+                </p>
+                <p className="text-xs text-gray-300 mb-3">
+                  Have you made use of this subscription?
+                </p>
+                <div className="flex flex-wrap gap-3 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <Recycle className="w-3 h-3 text-blue-400" />
+                    <span className="text-gray-300">Cancel unused</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Smartphone className="w-3 h-3 text-green-400" />
+                    <span className="text-gray-300">Review usage</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'book':
+        return (
+          <div className={baseClasses}>
+            <div className="flex items-center gap-3 mb-3">
+              <Leaf className="w-5 h-5 text-green-400" />
+              <h4 className="text-sm font-medium text-white">CO₂ Emission Tip</h4>
+            </div>
+            <div className="flex items-start gap-3">
+              <BookOpen className="w-4 h-4 text-gray-300 mt-1 flex-shrink-0" />
+              <div>
+                <p className="text-sm text-gray-200 mb-2">
+                  You spent <span className="font-semibold text-green-400">{monthlyBookExpenses.toFixed(0)} CHF</span> on books this month.
+                </p>
+                <p className="text-xs text-gray-300 mb-3">
+                  Have you read it?
+                </p>
+                <div className="flex flex-wrap gap-3 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <BookOpen className="w-3 h-3 text-blue-400" />
+                    <span className="text-gray-300">Start reading</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Recycle className="w-3 h-3 text-green-400" />
+                    <span className="text-gray-300">Share when done</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'electronics':
+        return (
+          <div className={baseClasses}>
+            <div className="flex items-center gap-3 mb-3">
+              <Leaf className="w-5 h-5 text-green-400" />
+              <h4 className="text-sm font-medium text-white">CO₂ Emission Tip</h4>
+            </div>
+            <div className="flex items-start gap-3">
+              <Zap className="w-4 h-4 text-gray-300 mt-1 flex-shrink-0" />
+              <div>
+                <p className="text-sm text-gray-200 mb-2">
+                  You spent <span className="font-semibold text-green-400">{monthlyElectronicsExpenses.toFixed(0)} CHF</span> on electronics this month.
+                </p>
+                <p className="text-xs text-gray-300 mb-3">
+                  Check your warranty expiration.
+                </p>
+                <div className="flex flex-wrap gap-3 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <Shield className="w-3 h-3 text-blue-400" />
+                    <span className="text-gray-300">Check warranty</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Recycle className="w-3 h-3 text-green-400" />
+                    <span className="text-gray-300">Extended protection</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'fuel':
+        return (
+          <div className={baseClasses}>
+            <div className="flex items-center gap-3 mb-3">
+              <Leaf className="w-5 h-5 text-green-400" />
+              <h4 className="text-sm font-medium text-white">CO₂ Emission Tip</h4>
+            </div>
+            <div className="flex items-start gap-3">
+              <Car className="w-4 h-4 text-gray-300 mt-1 flex-shrink-0" />
+              <div>
+                <p className="text-sm text-gray-200 mb-2">
+                  You spent <span className="font-semibold text-green-400">{monthlyFuelExpenses.toFixed(0)} CHF</span> on fuel this month.
+                </p>
+                <p className="text-xs text-gray-300 mb-3">
+                  You use a lot of gas! Consider cycling or public transport to reduce your environmental impact and save money.
+                </p>
+                <div className="flex flex-wrap gap-3 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <Bike className="w-3 h-3 text-blue-400" />
+                    <span className="text-gray-300">Cycling</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Bus className="w-3 h-3 text-purple-400" />
+                    <span className="text-gray-300">Public transport</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'parking':
+        return (
+          <div className={baseClasses}>
+            <div className="flex items-center gap-3 mb-3">
+              <Leaf className="w-5 h-5 text-green-400" />
+              <h4 className="text-sm font-medium text-white">CO₂ Emission Tip</h4>
+            </div>
+            <div className="flex items-start gap-3">
+              <Car className="w-4 h-4 text-gray-300 mt-1 flex-shrink-0" />
+              <div>
+                <p className="text-sm text-gray-200 mb-2">
+                  You spent <span className="font-semibold text-green-400">{monthlyParkingExpenses.toFixed(0)} CHF</span> on parking this month.
+                </p>
+                <p className="text-xs text-gray-300 mb-3">
+                  Consider sustainable transport to reduce costs and CO₂ emissions.
+                </p>
+                <div className="flex flex-wrap gap-3 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <Bike className="w-3 h-3 text-blue-400" />
+                    <span className="text-gray-300">Cycling</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Bus className="w-3 h-3 text-purple-400" />
+                    <span className="text-gray-300">Public transport</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
     }
   };
 
@@ -118,6 +720,36 @@ export default function MonthlySpendingSection({ monthlySpendingData }: MonthlyS
           </div>
         </div>
       </div>
+      
+      {/* Render visible CO2 tips */}
+      {visibleTips.map((tip, index) => (
+        <div key={tip.id}>
+          {renderTipComponent(tip.component)}
+        </div>
+      ))}
+
+      {/* Show more button if there are hidden tips */}
+      {hiddenTipsCount > 0 && (
+        <div className="mt-4">
+          <button
+            onClick={() => setShowAllTips(!showAllTips)}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-800 rounded-md transition-colors border border-gray-700 hover:border-gray-600"
+          >
+            {showAllTips ? (
+              <>
+                <ChevronUp className="w-4 h-4" />
+                Show fewer tips
+              </>
+            ) : (
+              <>
+                <ChevronDown className="w-4 h-4" />
+                Show {hiddenTipsCount} more tip{hiddenTipsCount !== 1 ? 's' : ''}
+              </>
+            )}
+          </button>
+        </div>
+      )}
+      
       <a href="/opportunity-cost-visualizer" className="w-full mt-6 inline-flex justify-center items-center px-6 py-3 text-sm font-medium text-black bg-white hover:bg-gray-200 transition-colors">
         <WandSparkles className="w-4 h-4 mr-2" /> Opportunity Cost Visualizer
       </a>
