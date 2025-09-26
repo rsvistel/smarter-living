@@ -43,3 +43,6 @@ Thumbs.db
 # Build output
 dist/
 build/
+
+# Data files
+data/
