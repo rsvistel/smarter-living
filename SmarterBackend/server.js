@@ -7,6 +7,11 @@ const { PrismaClient } = require('./generated/prisma');
 const SimpleRepository = require('./repositories/SimpleRepository');
 const DataReader = require('./services/DataReader');
 
+// Import Controllers
+const UserController = require('./controllers/UserController');
+const TransactionController = require('./controllers/TransactionController');
+const CardController = require('./controllers/CardController');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const dataReader = new DataReader();
@@ -30,6 +35,11 @@ const prisma = new PrismaClient();
 // Simple Repository instance
 const simpleRepository = new SimpleRepository();
 
+// Initialize Controllers
+const userController = new UserController(simpleRepository);
+const transactionController = new TransactionController(simpleRepository);
+const cardController = new CardController(simpleRepository);
+
 const swaggerDefinition = {
   openapi: '3.0.0',
   info: {
@@ -43,6 +53,32 @@ const swaggerDefinition = {
       description: 'Development server',
     },
   ],
+  tags: [
+    {
+      name: 'Introduction',
+      description: 'Basic endpoints'
+    },
+    {
+      name: 'Users',
+      description: 'User management endpoints'
+    },
+    {
+      name: 'Transactions',
+      description: 'Transaction management endpoints'
+    },
+    {
+      name: 'Cards',
+      description: 'Card management endpoints'
+    },
+    {
+      name: 'Legacy',
+      description: 'Legacy CSV-based endpoints'
+    },
+    {
+      name: 'Database',
+      description: 'Database testing endpoints'
+    }
+  ]
 };
 
 const options = {
@@ -56,6 +92,7 @@ const swaggerSpec = swaggerJSDoc(options);
  * @swagger
  * /hello:
  *   get:
+ *     tags: [Introduction]
  *     summary: Returns a hello world message
  *     description: Simple endpoint that returns a JSON response with a hello world message
  *     responses:
@@ -78,6 +115,7 @@ app.get('/hello', (req, res) => {
  * @swagger
  * /transactions/count:
  *   get:
+ *     tags: [Legacy]
  *     summary: Returns the count of loaded transactions
  *     description: Returns the total number of transaction objects loaded from the CSV file
  *     responses:
@@ -127,6 +165,7 @@ app.get('/transactions/count', async (req, res) => {
  * @swagger
  * /transactions:
  *   get:
+ *     tags: [Legacy]
  *     summary: Returns the first 20 transactions
  *     description: Returns a list of the first 20 transaction objects from the loaded CSV data
  *     responses:
@@ -209,6 +248,7 @@ app.get('/transactions', async (req, res) => {
  * @swagger
  * /transactions/card/{cardId}:
  *   get:
+ *     tags: [Legacy]
  *     summary: Returns all transactions for a specific card ID
  *     description: Returns all transaction objects for the specified card ID from the loaded CSV data
  *     parameters:
@@ -320,6 +360,7 @@ app.get('/transactions/card/:cardId', async (req, res) => {
  * @swagger
  * /cards:
  *   get:
+ *     tags: [Legacy]
  *     summary: Returns all unique card IDs
  *     description: Returns a list of all unique card IDs found in the transaction data
  *     responses:
@@ -522,6 +563,7 @@ app.get('/users/transactions', async (req, res) => {
  * @swagger
  * /db/ping:
  *   get:
+ *     tags: [Database]
  *     summary: Test database connection
  *     description: Attempts to connect to the PostgreSQL database and returns connection status
  *     responses:
@@ -589,6 +631,7 @@ app.get('/db/ping', async (req, res) => {
  * @swagger
  * /users:
  *   get:
+ *     tags: [Database]
  *     summary: Get all users (Prisma demo)
  *     description: Returns all users from the database using Prisma ORM
  *     responses:
@@ -686,6 +729,178 @@ app.get('/users', async (req, res) => {
 });
 
 app.use(express.json());
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     User:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *         email:
+ *           type: string
+ *         name:
+ *           type: string
+ *         phone:
+ *           type: string
+ *     Transaction:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *         cardId:
+ *           type: string
+ *         trxDate:
+ *           type: string
+ *           format: date-time
+ *         trxAmount:
+ *           type: number
+ *         trxDesc:
+ *           type: string
+ *     Card:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *         cardId:
+ *           type: string
+ *         cardName:
+ *           type: string
+ *         isActive:
+ *           type: boolean
+ */
+
+/**
+ * @swagger
+ * /api/users:
+ *   get:
+ *     tags: [Users]
+ *     summary: Get all users
+ *     responses:
+ *       200:
+ *         description: Users retrieved successfully
+ */
+
+/**
+ * @swagger
+ * /api/users/{id}:
+ *   get:
+ *     tags: [Users]
+ *     summary: Get user by ID
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: User retrieved successfully
+ */
+
+/**
+ * @swagger
+ * /api/users:
+ *   post:
+ *     tags: [Users]
+ *     summary: Create a new user
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               username:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: User created successfully
+ */
+
+/**
+ * @swagger
+ * /api/transactions:
+ *   get:
+ *     tags: [Transactions]
+ *     summary: Get all transactions with pagination
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Transactions retrieved successfully
+ */
+
+/**
+ * @swagger
+ * /api/transactions/stats:
+ *   get:
+ *     tags: [Transactions]
+ *     summary: Get transaction statistics
+ *     responses:
+ *       200:
+ *         description: Statistics retrieved successfully
+ */
+
+/**
+ * @swagger
+ * /api/users/{userId}/cards:
+ *   get:
+ *     tags: [Cards]
+ *     summary: Get all cards for a user
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Cards retrieved successfully
+ */
+
+// Controller Routes
+// User Routes
+app.get('/api/users', userController.getAllUsers);
+app.get('/api/users/:id', userController.getUserById);
+app.post('/api/users', userController.createUser);
+app.post('/api/users/object', userController.createUserWithObject);
+app.get('/api/users/:id/transactions', userController.getUserTransactionsByCards);
+app.get('/api/users/:id/stats', userController.getUserStats);
+
+// Transaction Routes
+app.get('/api/transactions', transactionController.getAllTransactions);
+app.post('/api/transactions/import', transactionController.importTransactions);
+app.get('/api/transactions/stats', transactionController.getTransactionStats);
+app.get('/api/transactions/card/:cardId', transactionController.getTransactionsByCard);
+
+// Card Routes
+app.get('/api/users/:userId/cards', cardController.getUserCards);
+app.get('/api/users/:userId/cards/:cardId', cardController.getUserCard);
+app.post('/api/users/:userId/cards', cardController.addCardToUser);
+app.delete('/api/users/:userId/cards/:cardId', cardController.removeCardFromUser);
+app.get('/api/cards/:cardId/stats', cardController.getCardStats);
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({
+    success: false,
+    message: 'Internal server error',
+    timestamp: new Date().toISOString()
+  });
+});
 
 app.post('/users', async (req, res) => {
   try {
