@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { CATEGORY_ICONS } from '../mcc-mapping';
 import MonthlySpendingChart from './MonthlySpendingChart';
-import { WandSparkles } from 'lucide-react';
+import { WandSparkles, Leaf, Car, Bike, Bus } from 'lucide-react';
 
 interface MonthlySpending {
   month: string;
@@ -16,9 +16,11 @@ interface MonthlySpending {
 
 interface MonthlySpendingSectionProps {
   monthlySpendingData: MonthlySpending[];
+  allTransactions?: any[];
+  exchangeRates?: Record<string, number>;
 }
 
-export default function MonthlySpendingSection({ monthlySpendingData }: MonthlySpendingSectionProps) {
+export default function MonthlySpendingSection({ monthlySpendingData, allTransactions = [], exchangeRates = {} }: MonthlySpendingSectionProps) {
   const [currentMonthIndex, setCurrentMonthIndex] = useState(0);
 
   if (!monthlySpendingData || monthlySpendingData.length === 0) {
@@ -40,6 +42,32 @@ export default function MonthlySpendingSection({ monthlySpendingData }: MonthlyS
       setCurrentMonthIndex(currentMonthIndex - 1);
     }
   };
+
+  // Calculate parking expenses for current month
+  const calculateParkingExpenses = () => {
+    if (!allTransactions.length) return 0;
+    
+    const currentMonthTransactions = allTransactions.filter(transaction => {
+      const transactionDate = new Date(transaction.trx_date);
+      const transactionMonthKey = `${transactionDate.getFullYear()}-${String(transactionDate.getMonth() + 1).padStart(2, '0')}`;
+      const currentMonthKey = `${currentMonth.year}-${String(new Date(`${currentMonth.month} 1`).getMonth() + 1).padStart(2, '0')}`;
+      
+      return transactionMonthKey === currentMonthKey && transaction.trx_mcc === '7523';
+    });
+
+    return currentMonthTransactions.reduce((total, transaction) => {
+      let amount = Math.abs(parseFloat(transaction.trx_amount) || 0);
+      
+      // Convert to CHF if needed
+      if (transaction.trx_currency !== '756' && exchangeRates[transaction.trx_currency]) {
+        amount = amount * exchangeRates[transaction.trx_currency];
+      }
+      
+      return total + amount;
+    }, 0);
+  };
+
+  const monthlyParkingExpenses = calculateParkingExpenses();
 
   return (
     <div className="mb-6 bg-neutral-900 p-4 shadow-sm">
@@ -118,6 +146,39 @@ export default function MonthlySpendingSection({ monthlySpendingData }: MonthlyS
           </div>
         </div>
       </div>
+      
+      {monthlyParkingExpenses > 15 && (
+        <div className="mt-4 bg-green-900 p-4 border-l-4 border-green-400">
+          <div className="flex items-center gap-3 mb-3">
+            <Leaf className="w-5 h-5 text-green-400" />
+            <h4 className="text-sm font-medium text-white">CO₂ Emission Tip</h4>
+          </div>
+          
+          <div className="flex items-start gap-3">
+            <Car className="w-4 h-4 text-gray-300 mt-1 flex-shrink-0" />
+            <div>
+              <p className="text-sm text-gray-200 mb-2">
+                You spent <span className="font-semibold text-green-400">{monthlyParkingExpenses.toFixed(0)} CHF</span> on parking this month.
+              </p>
+              <p className="text-xs text-gray-300 mb-3">
+                Consider sustainable transport to reduce costs and CO₂ emissions.
+              </p>
+              
+              <div className="flex flex-wrap gap-3 text-xs">
+                <div className="flex items-center gap-1.5">
+                  <Bike className="w-3 h-3 text-blue-400" />
+                  <span className="text-gray-300">Cycling</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Bus className="w-3 h-3 text-purple-400" />
+                  <span className="text-gray-300">Public transport</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <a href="/opportunity-cost-visualizer" className="w-full mt-6 inline-flex justify-center items-center px-6 py-3 text-sm font-medium text-black bg-white hover:bg-gray-200 transition-colors">
         <WandSparkles className="w-4 h-4 mr-2" /> Opportunity Cost Visualizer
       </a>

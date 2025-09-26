@@ -473,7 +473,11 @@ export default async function Home({ searchParams }: PageProps) {
         )} */}
 
         {/* <FoodSavingsInsight totalFoodSpending={foodDiningLast12Months} /> */}
-        <MonthlySpendingSection monthlySpendingData={monthlySpending} />
+        <MonthlySpendingSection 
+          monthlySpendingData={monthlySpending} 
+          allTransactions={allSortedTransactions}
+          exchangeRates={exchangeRates}
+        />
         
         <div>
           <div className="flex items-center justify-between mb-2">
