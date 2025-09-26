@@ -39,7 +39,7 @@ public class UserController(ISimpleRepository repository) : ControllerBase
         return Ok(user);
     }
 
-    [HttpPost("{userId}/cards")]
+    [HttpPost("/cards/{userId}")]
     public async Task<ActionResult<UserCardModel>> AddCardToUser(int userId, [FromBody] AddCardRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.CardId) || string.IsNullOrWhiteSpace(request.CardName))
@@ -58,7 +58,7 @@ public class UserController(ISimpleRepository repository) : ControllerBase
         }
     }
 
-    [HttpGet("{userId}/cards")]
+    [HttpGet("/cards-by-user/{userId}")]
     public async Task<ActionResult<List<UserCardModel>>> GetUserCards(int userId)
     {
         // Check if user exists
@@ -94,8 +94,8 @@ public class UserController(ISimpleRepository repository) : ControllerBase
         return NoContent();
     }
 
-    [HttpGet("{userId}/transactions-by-cards")]
-    public async Task<ActionResult<UserTransactionsByCardsResponse>> GetUserTransactionsByCards(
+    [HttpGet("{userId}/transactions-by-user")]
+    public async Task<ActionResult<UserTransactionsByCardsResponse>> GetTransactionsByUser(
         int userId,
         [FromQuery] bool includeInactive = false,
         [FromQuery] DateTime? fromDate = null,
