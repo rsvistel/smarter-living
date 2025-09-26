@@ -9,8 +9,22 @@ public class Mapper : IMapper
     {
         return new UserModel
         {
-            Name = user.Name,
-            Email = user.Email
+            Id = user.Id,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            FullName = user.FullName,
+            Email = user.Email,
+            PhoneNumber = user.PhoneNumber,
+            DateOfBirth = user.DateOfBirth,
+            Country = user.Country,
+            City = user.City,
+            Address = user.Address,
+            PostalCode = user.PostalCode,
+            PreferredCurrency = user.PreferredCurrency,
+            PreferredLanguage = user.PreferredLanguage,
+            IsActive = user.IsActive,
+            CreatedAt = user.CreatedAt,
+            UpdatedAt = user.UpdatedAt
         };
     }
 
@@ -18,9 +32,21 @@ public class Mapper : IMapper
     {
         return new UserEntity
         {
-            Name = user.Name,
+            Id = user.Id,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
             Email = user.Email,
-            CreatedAt = DateTime.UtcNow
+            PhoneNumber = user.PhoneNumber,
+            DateOfBirth = user.DateOfBirth,
+            Country = user.Country,
+            City = user.City,
+            Address = user.Address,
+            PostalCode = user.PostalCode,
+            PreferredCurrency = user.PreferredCurrency,
+            PreferredLanguage = user.PreferredLanguage,
+            IsActive = user.IsActive,
+            CreatedAt = user.CreatedAt,
+            UpdatedAt = user.UpdatedAt
         };
     }
 

@@ -20,9 +20,26 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<UserEntity>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.FirstName).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.LastName).IsRequired().HasMaxLength(100);
             entity.Property(e => e.Email).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.PhoneNumber).HasMaxLength(20);
+            entity.Property(e => e.Country).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.City).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Address).HasMaxLength(500);
+            entity.Property(e => e.PostalCode).HasMaxLength(20);
+            entity.Property(e => e.PreferredCurrency).IsRequired().HasMaxLength(3);
+            entity.Property(e => e.PreferredLanguage).IsRequired().HasMaxLength(5);
+            entity.Property(e => e.IsActive);
+
+            // Indexes
             entity.HasIndex(e => e.Email).IsUnique();
+            entity.HasIndex(e => e.PhoneNumber);
+            entity.HasIndex(e => e.Country);
+            entity.HasIndex(e => new { e.FirstName, e.LastName });
+
+            // Ignore computed properties
+            entity.Ignore(e => e.FullName);
         });
 
         modelBuilder.Entity<TransactionEntity>(entity =>

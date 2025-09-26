@@ -18,10 +18,48 @@ public class SimpleRepository(ApplicationDbContext context, IMapper mapper ) : I
     {
         var userEntity = new UserEntity
         {
-            Name = username,
+            FirstName = username,
+            LastName = "",
             Email = password,
+            Country = "Unknown",
+            City = "Unknown",
+            DateOfBirth = DateTime.UtcNow.AddYears(-25), // Default age 25
             CreatedAt = DateTime.UtcNow
         };
+
+        context.Users.Add(userEntity);
+        await context.SaveChangesAsync();
+
+        return mapper.Map(userEntity);
+    }
+
+    public async Task<UserModel> CreateUserAsync(UserModel user)
+    {
+        var preferredCurrency = string.IsNullOrWhiteSpace(user.PreferredCurrency)
+            ? "USD"
+            : user.PreferredCurrency.Trim().ToUpperInvariant();
+
+        if (preferredCurrency.Length != 3)
+        {
+            throw new ArgumentException("Preferred currency must be a 3-letter ISO code.", nameof(user.PreferredCurrency));
+        }
+
+        var preferredLanguage = string.IsNullOrWhiteSpace(user.PreferredLanguage)
+            ? "EN"
+            : user.PreferredLanguage.Trim();
+
+        if (preferredLanguage.Length is < 2 or > 5)
+        {
+            throw new ArgumentException("Preferred language must be between 2 and 5 characters.", nameof(user.PreferredLanguage));
+        }
+
+        user.PreferredCurrency = preferredCurrency;
+        user.PreferredLanguage = preferredLanguage;
+
+        var userEntity = mapper.Map(user);
+        userEntity.Id = 0; // Ensure new entity
+        userEntity.CreatedAt = DateTime.UtcNow;
+        userEntity.UpdatedAt = null;
 
         context.Users.Add(userEntity);
         await context.SaveChangesAsync();
@@ -169,7 +207,7 @@ public class SimpleRepository(ApplicationDbContext context, IMapper mapper ) : I
             return new UserTransactionsByCardsResponse
             {
                 UserId = userId,
-                UserName = user.Name,
+                UserName = user.FullName,
                 UserEmail = user.Email,
                 Cards = new List<UserCardWithTransactionsModel>(),
                 ReportGeneratedAt = DateTime.UtcNow
@@ -218,7 +256,7 @@ public class SimpleRepository(ApplicationDbContext context, IMapper mapper ) : I
         return new UserTransactionsByCardsResponse
         {
             UserId = userId,
-            UserName = user.Name,
+            UserName = user.FullName,
             UserEmail = user.Email,
             Cards = cardsWithTransactions,
             ReportGeneratedAt = DateTime.UtcNow

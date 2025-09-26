@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using Repository.Repostories;
 using WebApp.Models;
@@ -25,7 +26,59 @@ public class UserController(ISimpleRepository repository) : ControllerBase
         }
 
         var user = await repository.CreateUserAsync(request.Username, request.Email);
-        return CreatedAtAction(nameof(GetUsers), new { id = user.Name }, user);
+        return CreatedAtAction(nameof(GetUsers), new { id = user.Id }, user);
+    }
+
+    [HttpPost("detailed")]
+    public async Task<ActionResult<UserModel>> CreateDetailedUser([FromBody] CreateDetailedUserRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        if (string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.Email))
+        {
+            return BadRequest("FirstName and Email are required");
+        }
+
+        var preferredCurrency = string.IsNullOrWhiteSpace(request.PreferredCurrency)
+            ? "USD"
+            : request.PreferredCurrency.Trim().ToUpperInvariant();
+
+        if (preferredCurrency.Length != 3)
+        {
+            ModelState.AddModelError(nameof(request.PreferredCurrency), "Preferred currency must be a 3-letter ISO code.");
+            return ValidationProblem(ModelState);
+        }
+
+        var preferredLanguage = string.IsNullOrWhiteSpace(request.PreferredLanguage)
+            ? "EN"
+            : request.PreferredLanguage.Trim();
+
+        if (preferredLanguage.Length is < 2 or > 5)
+        {
+            ModelState.AddModelError(nameof(request.PreferredLanguage), "Preferred language must be between 2 and 5 characters.");
+            return ValidationProblem(ModelState);
+        }
+
+        var userModel = new UserModel
+        {
+            FirstName = request.FirstName,
+            LastName = request.LastName,
+            Email = request.Email,
+            PhoneNumber = request.PhoneNumber,
+            DateOfBirth = request.DateOfBirth,
+            Country = request.Country,
+            City = request.City,
+            Address = request.Address,
+            PostalCode = request.PostalCode,
+            PreferredCurrency = preferredCurrency,
+            PreferredLanguage = preferredLanguage
+        };
+
+        var user = await repository.CreateUserAsync(userModel);
+        return CreatedAtAction(nameof(GetUser), new { userId = user.Id }, user);
     }
 
     [HttpGet("{userId}")]
@@ -116,6 +169,25 @@ public class CreateUserRequest
 {
     public string Username { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
+}
+
+public class CreateDetailedUserRequest
+{
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string? PhoneNumber { get; set; }
+    public DateTime DateOfBirth { get; set; }
+    public string Country { get; set; } = string.Empty;
+    public string City { get; set; } = string.Empty;
+    public string? Address { get; set; }
+    public string? PostalCode { get; set; }
+
+    [StringLength(3, MinimumLength = 3, ErrorMessage = "Preferred currency must be a 3-letter ISO code.")]
+    public string? PreferredCurrency { get; set; }
+
+    [StringLength(5, MinimumLength = 2, ErrorMessage = "Preferred language must be between 2 and 5 characters.")]
+    public string? PreferredLanguage { get; set; }
 }
 
 public class AddCardRequest
