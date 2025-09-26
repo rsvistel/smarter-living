@@ -1,6 +1,9 @@
+require('dotenv').config();
 const express = require('express');
 const swaggerJSDoc = require('swagger-jsdoc');
 const { apiReference } = require('@scalar/express-api-reference');
+const { Pool } = require('pg');
+const { PrismaClient } = require('./generated/prisma');
 const DataReader = require('./services/DataReader');
 
 const app = express();
@@ -13,6 +16,15 @@ const USER_CARD_MAPPING = {
   2: ["4164XFDCVUSR4148", "4170DWYZLBMQ1776"],
   3: ["4240ZXIAGHNR1012", "4242ZUQBAXVW5738", "4258MASFXRIZ7580"]
 };
+
+// PostgreSQL connection pool
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+});
+
+// Prisma client
+const prisma = new PrismaClient();
 
 const swaggerDefinition = {
   openapi: '3.0.0',
@@ -498,6 +510,211 @@ app.get('/users/transactions', async (req, res) => {
     console.error('Error loading transaction data:', error);
     res.status(500).json({
       error: 'Failed to load transaction data'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /db/ping:
+ *   get:
+ *     summary: Test database connection
+ *     description: Attempts to connect to the PostgreSQL database and returns connection status
+ *     responses:
+ *       200:
+ *         description: Database connection successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Database connection successful
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                   example: 2024-01-01T12:00:00.000Z
+ *       500:
+ *         description: Database connection failed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                   example: Database connection failed
+ *                 error:
+ *                   type: string
+ *                   example: Connection timeout
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                   example: 2024-01-01T12:00:00.000Z
+ */
+app.get('/db/ping', async (req, res) => {
+  try {
+    const client = await pool.connect();
+    await client.query('SELECT NOW()');
+    client.release();
+
+    res.json({
+      status: 'success',
+      message: 'Database connection successful',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Database connection error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Database connection failed',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /users:
+ *   get:
+ *     summary: Get all users (Prisma demo)
+ *     description: Returns all users from the database using Prisma ORM
+ *     responses:
+ *       200:
+ *         description: Successful response
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 users:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                         example: 1
+ *                       email:
+ *                         type: string
+ *                         example: user@example.com
+ *                       name:
+ *                         type: string
+ *                         example: John Doe
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                 count:
+ *                   type: integer
+ *                   example: 5
+ *       500:
+ *         description: Database error
+ *   post:
+ *     summary: Create a new user (Prisma demo)
+ *     description: Creates a new user using Prisma ORM
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 example: user@example.com
+ *               name:
+ *                 type: string
+ *                 example: John Doe
+ *     responses:
+ *       201:
+ *         description: User created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                       example: 1
+ *                     email:
+ *                       type: string
+ *                       example: user@example.com
+ *                     name:
+ *                       type: string
+ *                       example: John Doe
+ *       400:
+ *         description: Invalid input or email already exists
+ *       500:
+ *         description: Database error
+ */
+app.get('/users', async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      include: {
+        cards: true
+      }
+    });
+
+    res.json({
+      users: users,
+      count: users.length
+    });
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({
+      error: 'Failed to fetch users',
+      message: error.message
+    });
+  }
+});
+
+app.use(express.json());
+
+app.post('/users', async (req, res) => {
+  try {
+    const { email, name } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        error: 'Email is required'
+      });
+    }
+
+    const user = await prisma.user.create({
+      data: {
+        email,
+        name
+      }
+    });
+
+    res.status(201).json({
+      user: user
+    });
+  } catch (error) {
+    console.error('Error creating user:', error);
+
+    if (error.code === 'P2002') {
+      return res.status(400).json({
+        error: 'Email already exists'
+      });
+    }
+
+    res.status(500).json({
+      error: 'Failed to create user',
+      message: error.message
     });
   }
 });
