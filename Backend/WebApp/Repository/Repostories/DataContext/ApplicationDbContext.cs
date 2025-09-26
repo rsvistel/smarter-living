@@ -11,6 +11,7 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<UserEntity> Users { get; set; }
     public DbSet<TransactionEntity> Transactions { get; set; }
+    public DbSet<UserCardEntity> UserCards { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -41,6 +42,24 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.LimitExhaustionCategory).HasMaxLength(50);
             entity.HasIndex(e => e.CardId);
             entity.HasIndex(e => e.TransactionDate);
+        });
+
+        modelBuilder.Entity<UserCardEntity>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.CardId).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.CardName).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.IsActive);
+
+            // Foreign key relationship
+            entity.HasOne(e => e.User)
+                  .WithMany(u => u.UserCards)
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            // Composite unique index (one card per user)
+            entity.HasIndex(e => new { e.UserId, e.CardId }).IsUnique();
+            entity.HasIndex(e => e.CardId);
         });
     }
 }

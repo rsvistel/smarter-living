@@ -70,4 +70,30 @@ public class Mapper : IMapper
             CreatedAt = DateTime.UtcNow
         };
     }
+
+    public UserCardModel Map(UserCardEntity userCard)
+    {
+        return new UserCardModel
+        {
+            Id = userCard.Id,
+            UserId = userCard.UserId,
+            CardId = userCard.CardId,
+            CardName = userCard.CardName,
+            IsActive = userCard.IsActive,
+            CreatedAt = userCard.CreatedAt
+        };
+    }
+
+    public UserCardEntity Map(UserCardModel userCard)
+    {
+        return new UserCardEntity
+        {
+            Id = userCard.Id,
+            UserId = userCard.UserId,
+            CardId = userCard.CardId,
+            CardName = userCard.CardName,
+            IsActive = userCard.IsActive,
+            CreatedAt = userCard.CreatedAt
+        };
+    }
 }
