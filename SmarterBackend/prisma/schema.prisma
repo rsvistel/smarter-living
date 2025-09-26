@@ -19,6 +19,8 @@ model User {
   email     String   @unique
   name      String?
   phone     String?
+  username  String?  @unique
+  password  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   cards     Card[]
@@ -29,6 +31,7 @@ model User {
 model Card {
   id          Int           @id @default(autoincrement())
   cardId      String        @unique
+  cardName    String?
   userId      Int
   isActive    Boolean       @default(true)
   createdAt   DateTime      @default(now())

@@ -4,6 +4,7 @@ const swaggerJSDoc = require('swagger-jsdoc');
 const { apiReference } = require('@scalar/express-api-reference');
 const { Pool } = require('pg');
 const { PrismaClient } = require('./generated/prisma');
+const SimpleRepository = require('./repositories/SimpleRepository');
 const DataReader = require('./services/DataReader');
 
 const app = express();
@@ -25,6 +26,9 @@ const pool = new Pool({
 
 // Prisma client
 const prisma = new PrismaClient();
+
+// Simple Repository instance
+const simpleRepository = new SimpleRepository();
 
 const swaggerDefinition = {
   openapi: '3.0.0',
@@ -714,6 +718,112 @@ app.post('/users', async (req, res) => {
 
     res.status(500).json({
       error: 'Failed to create user',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /repository/users:
+ *   get:
+ *     summary: Get all users using SimpleRepository
+ *     description: Demonstrates the repository pattern by getting all users through the SimpleRepository interface
+ *     responses:
+ *       200:
+ *         description: Successful response
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 users:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                 count:
+ *                   type: integer
+ *                 message:
+ *                   type: string
+ *       500:
+ *         description: Database error
+ */
+app.get('/repository/users', async (req, res) => {
+  try {
+    const users = await simpleRepository.getUserAsync();
+
+    res.json({
+      users: users,
+      count: users.length,
+      message: 'Users retrieved using SimpleRepository pattern'
+    });
+  } catch (error) {
+    console.error('Error in /repository/users:', error);
+    res.status(500).json({
+      error: 'Failed to fetch users through repository',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /repository/users/{userId}/transactions:
+ *   get:
+ *     summary: Get user transactions by cards using SimpleRepository
+ *     description: Demonstrates the repository pattern by getting user transactions grouped by cards
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         description: The user ID
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: includeInactive
+ *         description: Include inactive cards
+ *         schema:
+ *           type: boolean
+ *           default: false
+ *     responses:
+ *       200:
+ *         description: Successful response
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                 message:
+ *                   type: string
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Database error
+ */
+app.get('/repository/users/:userId/transactions', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const includeInactive = req.query.includeInactive === 'true';
+
+    const result = await simpleRepository.getUserTransactionsByCardsAsync(userId, includeInactive);
+
+    if (!result) {
+      return res.status(404).json({
+        error: 'User not found or no transactions',
+        userId: userId
+      });
+    }
+
+    res.json({
+      data: result,
+      message: 'User transactions retrieved using SimpleRepository pattern'
+    });
+  } catch (error) {
+    console.error('Error in /repository/users/:userId/transactions:', error);
+    res.status(500).json({
+      error: 'Failed to fetch user transactions through repository',
       message: error.message
     });
   }
