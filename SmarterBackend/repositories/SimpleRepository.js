@@ -39,14 +39,34 @@ class SimpleRepository extends ISimpleRepository {
     try {
       const user = await this.prisma.user.create({
         data: {
-          username,
-          password,
+          name: username,
           email: `${username}@temp.com` // Temporary email since it's required
         }
       });
       return user;
     } catch (error) {
       console.error('Error in createUserAsync:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create user with username and email (V2 API compatibility)
+   * @param {string} username
+   * @param {string} email
+   * @returns {Promise<UserModel>}
+   */
+  async createUserWithEmailAsync(username, email) {
+    try {
+      const user = await this.prisma.user.create({
+        data: {
+          email,
+          name: username
+        }
+      });
+      return user;
+    } catch (error) {
+      console.error('Error in createUserWithEmailAsync:', error);
       throw error;
     }
   }
@@ -62,9 +82,7 @@ class SimpleRepository extends ISimpleRepository {
         data: {
           email: user.email,
           name: user.name,
-          phone: user.phone,
-          username: user.username,
-          password: user.password
+          phone: user.phone
         }
       });
       return createdUser;
@@ -101,7 +119,6 @@ class SimpleRepository extends ISimpleRepository {
             card = await this.prisma.card.create({
               data: {
                 cardId: transaction.cardId,
-                cardName: `Card ${transaction.cardId}`,
                 userId: 1, // Default user - you might want to handle this differently
                 isActive: true
               }
@@ -176,7 +193,6 @@ class SimpleRepository extends ISimpleRepository {
       const card = await this.prisma.card.create({
         data: {
           cardId,
-          cardName,
           userId,
           isActive: true
         },

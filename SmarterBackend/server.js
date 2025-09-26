@@ -11,6 +11,7 @@ const DataReader = require('./services/DataReader');
 const UserController = require('./controllers/UserController');
 const TransactionController = require('./controllers/TransactionController');
 const CardController = require('./controllers/CardController');
+const V2UserController = require('./controllers/V2UserController');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -39,6 +40,7 @@ const simpleRepository = new SimpleRepository();
 const userController = new UserController(simpleRepository);
 const transactionController = new TransactionController(simpleRepository);
 const cardController = new CardController(simpleRepository);
+const v2UserController = new V2UserController(simpleRepository);
 
 const swaggerDefinition = {
   openapi: '3.0.0',
@@ -77,6 +79,10 @@ const swaggerDefinition = {
     {
       name: 'Database',
       description: 'Database testing endpoints'
+    },
+    {
+      name: 'v2',
+      description: 'V2 API endpoints (C# controller compatibility)'
     }
   ]
 };
@@ -870,6 +876,208 @@ app.use(express.json());
  *         description: Cards retrieved successfully
  */
 
+/**
+ * @swagger
+ * /api/v2/user:
+ *   get:
+ *     tags: [v2]
+ *     summary: Get all users (V2 API)
+ *     description: Returns all users from the database
+ *     responses:
+ *       200:
+ *         description: Users retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/User'
+ *   post:
+ *     tags: [v2]
+ *     summary: Create user with username and email (V2 API)
+ *     description: Creates a new user with username and email
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - email
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: "john_doe"
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "john@example.com"
+ *     responses:
+ *       201:
+ *         description: User created successfully
+ *       400:
+ *         description: Username and email are required
+ */
+
+/**
+ * @swagger
+ * /api/v2/user/detailed:
+ *   post:
+ *     tags: [v2]
+ *     summary: Create detailed user (V2 API)
+ *     description: Creates a new user with extended profile information
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - firstName
+ *               - email
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *               lastName:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               phoneNumber:
+ *                 type: string
+ *               dateOfBirth:
+ *                 type: string
+ *                 format: date
+ *               country:
+ *                 type: string
+ *               city:
+ *                 type: string
+ *               address:
+ *                 type: string
+ *               postalCode:
+ *                 type: string
+ *               preferredCurrency:
+ *                 type: string
+ *                 maxLength: 3
+ *                 example: "USD"
+ *               preferredLanguage:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 5
+ *                 example: "EN"
+ *     responses:
+ *       201:
+ *         description: Detailed user created successfully
+ *       400:
+ *         description: Validation error
+ */
+
+/**
+ * @swagger
+ * /api/v2/user/{userId}:
+ *   get:
+ *     tags: [v2]
+ *     summary: Get user by ID (V2 API)
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: User retrieved successfully
+ *       404:
+ *         description: User not found
+ */
+
+/**
+ * @swagger
+ * /api/v2/cards/{userId}:
+ *   post:
+ *     tags: [v2]
+ *     summary: Add card to user (V2 API)
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - cardId
+ *               - cardName
+ *             properties:
+ *               cardId:
+ *                 type: string
+ *               cardName:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Card added successfully
+ *       400:
+ *         description: CardId and CardName are required
+ */
+
+/**
+ * @swagger
+ * /api/v2/cards-by-user/{userId}:
+ *   get:
+ *     tags: [v2]
+ *     summary: Get user cards (V2 API)
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: User cards retrieved successfully
+ *       404:
+ *         description: User not found
+ */
+
+/**
+ * @swagger
+ * /api/v2/user/{userId}/transactions-by-user:
+ *   get:
+ *     tags: [v2]
+ *     summary: Get user transactions by cards (V2 API)
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: includeInactive
+ *         schema:
+ *           type: boolean
+ *           default: false
+ *       - in: query
+ *         name: fromDate
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *       - in: query
+ *         name: toDate
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *     responses:
+ *       200:
+ *         description: User transactions retrieved successfully
+ *       404:
+ *         description: User not found
+ */
+
 // Controller Routes
 // User Routes
 app.get('/api/users', userController.getAllUsers);
@@ -891,6 +1099,17 @@ app.get('/api/users/:userId/cards/:cardId', cardController.getUserCard);
 app.post('/api/users/:userId/cards', cardController.addCardToUser);
 app.delete('/api/users/:userId/cards/:cardId', cardController.removeCardFromUser);
 app.get('/api/cards/:cardId/stats', cardController.getCardStats);
+
+// V2 API Routes (C# Controller compatibility)
+app.get('/api/v2/user', v2UserController.getUsers);
+app.post('/api/v2/user', v2UserController.createUser);
+app.post('/api/v2/user/detailed', v2UserController.createDetailedUser);
+app.get('/api/v2/user/:userId', v2UserController.getUser);
+app.post('/api/v2/cards/:userId', v2UserController.addCardToUser);
+app.get('/api/v2/cards-by-user/:userId', v2UserController.getUserCards);
+app.get('/api/v2/user/:userId/cards/:cardId', v2UserController.getUserCard);
+app.delete('/api/v2/user/:userId/cards/:cardId', v2UserController.removeCardFromUser);
+app.get('/api/v2/user/:userId/transactions-by-user', v2UserController.getTransactionsByUser);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

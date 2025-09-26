@@ -24,6 +24,16 @@ class ISimpleRepository {
   }
 
   /**
+   * Create user with username and email (V2 API compatibility)
+   * @param {string} username
+   * @param {string} email
+   * @returns {Promise<UserModel>}
+   */
+  async createUserWithEmailAsync(username, email) {
+    throw new Error('Method must be implemented');
+  }
+
+  /**
    * Create user with user object
    * @param {UserModel} user
    * @returns {Promise<UserModel>}
