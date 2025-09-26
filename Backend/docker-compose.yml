@@ -1,0 +1,34 @@
+services:
+  db:
+    image: postgres:15
+    container_name: webapp_postgres
+    environment:
+      POSTGRES_DB: webapp_db
+      POSTGRES_USER: webapp_user
+      POSTGRES_PASSWORD: webapp_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U webapp_user -d webapp_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  webapp:
+    build:
+      context: ./WebApp
+      dockerfile: ./WebApp/Dockerfile
+    container_name: webapp_api
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=db;Database=webapp_db;Username=webapp_user;Password=webapp_password
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
