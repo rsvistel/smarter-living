@@ -1,6 +1,6 @@
 class Transaction {
   constructor(data) {
-    this.cardId = data.CardId;
+    this.cardId = data.CardId || data['﻿CardId'];
     this.ageCat = data.Age_cat;
     this.trxDate = data.trx_date;
     this.trxCode = data.trx_code;
