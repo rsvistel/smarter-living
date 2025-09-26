@@ -1,90 +1,12 @@
-import { promises as fs } from 'fs';
-import path from 'path';
-import { getMCCCategory, CATEGORY_ICONS } from './mcc-mapping';
+import { CATEGORY_ICONS } from './mcc-mapping';
 import MonthlySpendingChart from './components/MonthlySpendingChart';
 import TransactionList from './components/TransactionList';
 import MonthlySpendingSection from './components/MonthlySpendingSection';
 import FoodSavingsInsight from './components/OpportunityCostVisualizer';
+import { fetchUserTransactions } from '../lib/api';
+import { transformApiData, getExchangeRates, Transaction, CardInfo, MonthlySpending, CURRENCY_CODES } from '../lib/dataTransformation';
 
-interface Transaction {
-  CardId: string;
-  Age_cat: string;
-  trx_date: string;
-  trx_code: string;
-  trx_amount: string;
-  trx_currency: string;
-  trx_desc: string;
-  trx_city: string;
-  trx_country: string;
-  trx_mcc: string;
-  MccDesc: string;
-  MccGroup: string;
-  IsCardPresent: string;
-  IsPurchase: string;
-  IsCash: string;
-  LimitExhaustion_cat: string;
-}
-
-function parseCSV(csvText: string): Transaction[] {
-  const lines = csvText.split('\n');
-  const headers = lines[0].replace('\ufeff', '').split(',');
-  
-  return lines.slice(1)
-    .filter(line => line.trim())
-    .map(line => {
-      const values = line.split(',');
-      const transaction: any = {};
-      headers.forEach((header, index) => {
-        transaction[header] = values[index] || '';
-      });
-      return transaction as Transaction;
-    });
-}
-
-const CURRENCY_CODES: Record<string, string> = {
-  '756': 'CHF', // Swiss Franc
-  '978': 'EUR', // Euro
-  '840': 'USD', // US Dollar
-  '826': 'GBP', // British Pound Sterling
-  '392': 'JPY', // Japanese Yen
-  '949': 'TRY', // Turkish Lira
-  '208': 'DKK', // Danish Krone
-  '410': 'KRW', // South Korean Won
-  '752': 'SEK', // Swedish Krona
-  '901': 'TWD', // New Taiwan Dollar
-  '764': 'THB', // Thai Baht
-  '985': 'PLN', // Polish Zloty
-  '203': 'CZK', // Czech Koruna
-  '834': 'TZS', // Tanzanian Shilling
-  '504': 'MAD', // Moroccan Dirham
-  '784': 'AED', // UAE Dirham
-  '702': 'SGD', // Singapore Dollar
-  '144': 'LKR', // Sri Lankan Rupee
-  '032': 'ARS', // Argentine Peso
-  '512': 'OMR', // Omani Rial
-  '170': 'COP', // Colombian Peso
-  '124': 'CAD', // Canadian Dollar
-  '048': 'BHD', // Bahraini Dinar
-};
-
-async function getExchangeRates(): Promise<Record<string, number>> {
-  try {
-    const response = await fetch('https://api.exchangerate-api.com/v4/latest/CHF');
-    const data = await response.json();
-    
-    const rates: Record<string, number> = {};
-    Object.entries(CURRENCY_CODES).forEach(([code, symbol]) => {
-      if (symbol !== 'CHF' && data.rates[symbol]) {
-        rates[code] = 1 / data.rates[symbol];
-      }
-    });
-    
-    return rates;
-  } catch (error) {
-    console.error('Failed to fetch exchange rates:', error);
-    return {};
-  }
-}
+// Transaction interface is now imported from dataTransformation
 
 function formatAmount(amount: string, currency: string, exchangeRates: Record<string, number> = {}): React.JSX.Element | string {
   const numAmount = parseFloat(amount) * -1;
@@ -117,21 +39,7 @@ interface PageProps {
   searchParams: Promise<{ limit?: string; cards?: string; sort?: 'newest' | 'oldest' }>;
 }
 
-interface CardInfo {
-  id: string;
-  transactionCount: number;
-  totalAmount: number;
-  currencies: string[];
-}
-
-interface MonthlySpending {
-  month: string;
-  year: number;
-  totalCHF: number;
-  transactionCount: number;
-  currencies: Record<string, number>;
-  categories: Record<string, number>;
-}
+// CardInfo and MonthlySpending interfaces are now imported from dataTransformation
 
 export default async function Home({ searchParams }: PageProps) {
   const params = await searchParams;
@@ -149,34 +57,20 @@ export default async function Home({ searchParams }: PageProps) {
   let foodDiningLast12Months = 0;
   
   try {
-    const filePath = path.join(process.cwd(), 'data', 'data.csv');
-    const csvText = await fs.readFile(filePath, 'utf-8');
-    const allTransactions = parseCSV(csvText);
+    // Fetch exchange rates first
+    exchangeRates = await getExchangeRates();
     
-    // Calculate card statistics
-    const cardMap = new Map<string, CardInfo>();
-    allTransactions.forEach(transaction => {
-      const cardId = transaction.CardId;
-      if (!cardMap.has(cardId)) {
-        cardMap.set(cardId, {
-          id: cardId,
-          transactionCount: 0,
-          totalAmount: 0,
-          currencies: []
-        });
-      }
-      
-      const card = cardMap.get(cardId)!;
-      card.transactionCount++;
-      card.totalAmount += parseFloat(transaction.trx_amount) || 0;
-      
-      const currencySymbol = CURRENCY_CODES[transaction.trx_currency] || transaction.trx_currency;
-      if (!card.currencies.includes(currencySymbol)) {
-        card.currencies.push(currencySymbol);
-      }
-    });
+    // Fetch transaction data from API
+    const apiResponse = await fetchUserTransactions(1);
     
-    cardStats = Array.from(cardMap.values()).sort((a, b) => b.transactionCount - a.transactionCount);
+    if (apiResponse.error || !apiResponse.data) {
+      throw new Error(`API Error: ${apiResponse.error || 'No data received'}`);
+    }
+    
+    // Transform API data to legacy format
+    const transformedData = transformApiData(apiResponse.data, exchangeRates);
+    const allTransactions = transformedData.allTransactions;
+    cardStats = transformedData.cardStats;
     
     // Filter transactions by selected cards if specified
     const filteredTransactions = selectedCards.length > 0
@@ -196,68 +90,20 @@ export default async function Home({ searchParams }: PageProps) {
     
     transactions = allSortedTransactions.slice(0, Math.min(limit, 50)); // Initial load
     
-    exchangeRates = await getExchangeRates();
-    
-    // Calculate monthly spending (filtered by selected cards if any)
-    const transactionsForAnalysis = selectedCards.length > 0
-      ? allTransactions.filter(t => selectedCards.includes(t.CardId))
-      : allTransactions;
-    
-    const monthlyData = new Map<string, MonthlySpending>();
-    
-    transactionsForAnalysis.forEach(transaction => {
-      const date = new Date(transaction.trx_date);
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      const monthName = date.toLocaleDateString('en-US', { month: 'long' });
-      const year = date.getFullYear();
-      
-      if (!monthlyData.has(monthKey)) {
-        monthlyData.set(monthKey, {
-          month: monthName,
-          year,
-          totalCHF: 0,
-          transactionCount: 0,
-          currencies: {},
-          categories: {}
-        });
-      }
-      
-      const monthData = monthlyData.get(monthKey)!;
-      monthData.transactionCount++;
-      
-      const amount = parseFloat(transaction.trx_amount) || 0;
-      const currency = transaction.trx_currency;
-      const currencySymbol = CURRENCY_CODES[currency] || currency;
-      
-      // Convert to CHF
-      let chfAmount = amount;
-      if (currency !== '756' && exchangeRates[currency]) {
-        chfAmount = amount * exchangeRates[currency];
-      }
-      
-      monthData.totalCHF += chfAmount;
-      monthData.currencies[currencySymbol] = (monthData.currencies[currencySymbol] || 0) + amount;
-      
-      // Add category breakdown
-      const category = getMCCCategory(transaction.trx_mcc).category;
-      monthData.categories[category] = (monthData.categories[category] || 0) + chfAmount;
-    });
-    
-    monthlySpending = Array.from(monthlyData.values()).sort((a, b) => {
-      return b.year - a.year || (new Date(`${b.month} 1`).getMonth() - new Date(`${a.month} 1`).getMonth());
-    });
-    
-    // Calculate current month spending
-    const currentDate = new Date();
-    const currentMonthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
-    const currentMonthData = monthlyData.get(currentMonthKey);
-    
-    if (currentMonthData) {
-      currentMonthSpending = {
-        categories: currentMonthData.categories,
-        totalCHF: currentMonthData.totalCHF
+    // Use monthly spending from transformed data, but filter if cards are selected
+    if (selectedCards.length > 0) {
+      // Recalculate monthly spending for filtered cards
+      const filteredApiData = {
+        ...apiResponse.data,
+        cards: apiResponse.data.cards.filter(card => selectedCards.includes(card.cardId))
       };
+      const filteredTransformed = transformApiData(filteredApiData, exchangeRates);
+      monthlySpending = filteredTransformed.monthlySpending;
+    } else {
+      monthlySpending = transformedData.monthlySpending;
     }
+    
+    // Current month spending is handled by components
     
     // Calculate Food & Dining spending over last 12 months
     const last12MonthsData = monthlySpending.slice(0, 12);
@@ -266,7 +112,7 @@ export default async function Home({ searchParams }: PageProps) {
     }, 0);
     
   } catch (error) {
-    console.error('Error reading CSV file:', error);
+    console.error('Error fetching transaction data:', error);
   }
   
   const hasMoreTransactions = limit < totalTransactions;
