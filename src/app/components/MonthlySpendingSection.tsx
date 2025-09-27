@@ -679,7 +679,7 @@ export default function MonthlySpendingSection({ monthlySpendingData, allTransac
         </button>
       </div>
       
-      <div className="flex flex-col md:flex-row md:items-center gap-6 md:gap-8">
+      <div className="flex flex-col md:flex-row md:items-center gap-6 md:gap-8 md:mb-4 md:mb-6">
         <div className="flex justify-center md:flex-shrink-0">
           <MonthlySpendingChart 
             categories={currentMonth.categories} 

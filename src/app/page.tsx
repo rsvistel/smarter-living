@@ -51,7 +51,7 @@ export default async function Home({ searchParams }: PageProps) {
   const itemsPerPage = 50;
 
   // Get userId from session, fallback to 1 if not available
-  const userId = session?.userId || 1;
+  const userId = session?.userId || 3;
   
   let transactions: Transaction[] = [];
   let allSortedTransactions: Transaction[] = [];
@@ -152,47 +152,9 @@ export default async function Home({ searchParams }: PageProps) {
   return (
     <div className="min-h-screen bg-black py-8 px-4">
       <div className="max-w-3xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-white">Transaction History</h1>
-            {selectedCards.length > 0 && (
-              <div className="mt-2">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-sm text-gray-400">
-                    Filtered by {selectedCards.length} card{selectedCards.length !== 1 ? 's' : ''}:
-                  </span>
-                  <a 
-                    href="/" 
-                    className="text-sm text-white hover:text-gray-300 underline"
-                  >
-                    Clear all filters
-                  </a>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {selectedCards.map((cardId) => (
-                    <div key={cardId} className="flex items-center bg-gray-700 text-white px-2 py-1 rounded text-sm">
-                      <span className="font-mono mr-2">{cardId}</span>
-                      <a 
-                        href={removeCard(cardId)}
-                        className="text-gray-300 hover:text-white font-bold text-xs"
-                        title={`Remove ${cardId}`}
-                      >
-                        ×
-                      </a>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="text-sm text-gray-400">
-            Showing {transactions.length} of {totalTransactions} transactions
-          </div>
-        </div>
-        
-        <div className="mb-8">
+        <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-white">Select Cards</h2>
+            <h3 className="text-3xl font-light text-white">My Cards</h3>
             {selectedCards.length > 0 && (
               <div className="text-sm text-gray-400">
                 {selectedCards.length} card{selectedCards.length !== 1 ? 's' : ''} selected
@@ -206,37 +168,23 @@ export default async function Home({ searchParams }: PageProps) {
                 <a
                   key={card.id}
                   href={toggleCard(card.id)}
-                  className={`bg-gray-800 p-4 rounded-lg shadow-sm border transition-all duration-200 ${
-                    isSelected
-                      ? 'border-white bg-gray-600 shadow-md'
-                      : 'border-gray-700 hover:shadow-md hover:border-gray-400'
-                  }`}
+                  className="block w-full max-w-sm mx-auto"
                 >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="font-mono text-sm font-medium text-white">
-                      {card.id}
+                  <div className="relative w-full aspect-[1.586/1] bg-gradient-to-r from-gray-800 to-gray-900 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 p-6 border border-gray-700">
+                    {/* Credit card design elements */}
+                    <div className="absolute top-4 right-4">
+                      <div className="w-8 h-6 bg-gray-600 rounded-sm opacity-60"></div>
                     </div>
-                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                      isSelected
-                        ? 'border-white bg-white'
-                        : 'border-gray-600'
-                    }`}>
-                      {isSelected && (
-                        <svg className="w-3 h-3 text-black" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      )}
+                    
+                    {/* Card number */}
+                    <div className="absolute bottom-6 left-6 right-6">
+                      <div className="font-mono text-sm font-medium text-white tracking-wider">
+                        {card.id.replace(/(.{4})/g, '$1 ').trim()}
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-sm text-gray-300 space-y-1">
-                    <div className="flex justify-between">
-                      <span>Transactions:</span>
-                      <span className="font-medium">{card.transactionCount}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Currencies:</span>
-                      <span className="font-medium">{card.currencies.join(', ')}</span>
-                    </div>
+                    
+                    {/* Subtle pattern/texture */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-transparent rounded-xl"></div>
                   </div>
                 </a>
               );
