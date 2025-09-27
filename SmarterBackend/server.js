@@ -364,6 +364,51 @@ app.post('/transactions/upload', upload.single('file'), async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /transactions/count:
+ *   get:
+ *     summary: Get total count of transactions
+ *     description: Returns the total number of transactions in the database
+ *     responses:
+ *       200:
+ *         description: Successful response
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 count:
+ *                   type: integer
+ *                   example: 15000
+ *                   description: Total number of transactions in the database
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Failed to get transaction count
+ */
+app.get('/transactions/count', async (req, res) => {
+  try {
+    const count = await transactionRepo.getCountAllTransactions();
+
+    res.json({
+      count: count
+    });
+  } catch (error) {
+    console.error('Error getting transaction count:', error);
+    res.status(500).json({
+      error: 'Failed to get transaction count',
+      message: error.message
+    });
+  }
+});
+
 app.use(express.json());
 
 /**
