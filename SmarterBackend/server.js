@@ -15,6 +15,7 @@ const UserController = require('./controllers/UserController');
 const TransactionController = require('./controllers/TransactionController');
 const CardController = require('./controllers/CardController');
 const V2UserController = require('./controllers/V2UserController');
+const OpenAIController = require('./controllers/OpenAIController');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -75,6 +76,7 @@ const userController = new UserController(simpleRepository);
 const transactionController = new TransactionController(simpleRepository);
 const cardController = new CardController(simpleRepository);
 const v2UserController = new V2UserController(simpleRepository);
+const openAIController = new OpenAIController(simpleRepository);
 
 const swaggerDefinition = {
   openapi: '3.0.0',
@@ -117,6 +119,10 @@ const swaggerDefinition = {
     {
       name: 'v2',
       description: 'V2 API endpoints (C# controller compatibility)'
+    },
+    {
+      name: 'OpenAI',
+      description: 'OpenAI chat completion endpoints'
     }
   ]
 };
@@ -1718,6 +1724,102 @@ app.post('/auth/logout', authenticateToken, async (req, res) => {
  *         description: User not found
  */
 
+/**
+ * @swagger
+ * /api/openai/chat:
+ *   post:
+ *     tags: [OpenAI]
+ *     summary: OpenAI Chat Completion
+ *     description: Send a message to OpenAI and receive an array of response strings
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - message
+ *             properties:
+ *               message:
+ *                 type: string
+ *                 description: The message to send to OpenAI
+ *                 example: "Tell me 3 interesting facts about space"
+ *     responses:
+ *       200:
+ *         description: Chat completion successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Chat completion successful"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     responses:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example: ["Space is mostly empty", "The universe is expanding", "Black holes bend spacetime"]
+ *                     originalMessage:
+ *                       type: string
+ *                       example: "Tell me 3 interesting facts about space"
+ *                     tokensUsed:
+ *                       type: integer
+ *                       example: 45
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *       400:
+ *         description: Invalid request or missing message
+ *       500:
+ *         description: OpenAI API error or server error
+ */
+
+/**
+ * @swagger
+ * /api/openai/health:
+ *   get:
+ *     tags: [OpenAI]
+ *     summary: OpenAI Health Check
+ *     description: Check the status of OpenAI API integration
+ *     responses:
+ *       200:
+ *         description: Health check completed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "OpenAI health check completed"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     openaiConfigured:
+ *                       type: boolean
+ *                       example: true
+ *                     apiKeyPresent:
+ *                       type: boolean
+ *                       example: true
+ *                     connectionStatus:
+ *                       type: string
+ *                       enum: [success, failed, not_configured]
+ *                       example: "success"
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ */
+
 // Controller Routes
 // User Routes
 app.get('/api/users', userController.getAllUsers);
@@ -1750,6 +1852,10 @@ app.get('/api/v2/cards-by-user/:userId', v2UserController.getUserCards);
 app.get('/api/v2/user/:userId/cards/:cardId', v2UserController.getUserCard);
 app.delete('/api/v2/user/:userId/cards/:cardId', v2UserController.removeCardFromUser);
 app.get('/api/v2/user/:userId/transactions-by-user', v2UserController.getTransactionsByUser);
+
+// OpenAI API Routes
+app.post('/api/openai/chat', openAIController.chatCompletion);
+app.get('/api/openai/health', openAIController.healthCheck);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
