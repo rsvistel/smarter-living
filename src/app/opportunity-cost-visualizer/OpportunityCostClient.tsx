@@ -35,10 +35,10 @@ export default function OpportunityCostClient({ categorySpending, initialHouseho
     <div className="min-h-screen bg-black py-8 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
-          <div className="flex items-center gap-4 mb-2">
+          <div className="flex items-center gap-4">
             <a 
               href="/" 
-              className="inline-flex items-center gap-2 pr-3 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+              className="inline-flex items-center gap-2 pr-3 py-2 text-sm font-medium text-gray-300 rounded-lg transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
               Back to Home
