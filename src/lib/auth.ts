@@ -29,11 +29,12 @@ export const authOptions: NextAuthOptions = {
           })
 
           if (response.ok) {
-            const user = await response.json()
+            const data = await response.json()
             return {
-              id: user.userId?.toString() || user.id?.toString(),
-              email: user.email,
-              name: user.name || user.email,
+              id: data.user?.id?.toString() || data.userId?.toString(),
+              email: data.user?.email || data.email,
+              name: data.user?.name || data.name || data.user?.email || data.email,
+              backendToken: data.token, // Store the backend JWT token
             }
           }
         } catch (error) {
@@ -53,16 +54,20 @@ export const authOptions: NextAuthOptions = {
       return true
     },
     async session({ session, token }) {
-      // Add userId to session
+      // Add userId and backend token to session
       if (token.sub) {
         session.userId = parseInt(token.sub)
+      }
+      if (token.backendToken) {
+        (session as any).backendToken = token.backendToken
       }
       return session
     },
     async jwt({ token, user }) {
-      // Persist the user id to the token right after signin
+      // Persist the user id and backend token right after signin
       if (user) {
         token.sub = user.id
+        token.backendToken = (user as any).backendToken
       }
       return token
     }
