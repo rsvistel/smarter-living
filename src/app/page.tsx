@@ -5,7 +5,8 @@ import TransactionList from './components/TransactionList';
 import MonthlySpendingSection from './components/MonthlySpendingSection';
 import { fetchMyTransactions, isAuthenticated } from '../lib/api';
 import { transformApiData, getExchangeRates, Transaction, CardInfo, MonthlySpending } from '../lib/dataTransformation';
-import { CreditCard, Mic, Sparkles } from 'lucide-react';
+import { generateReportWithAIAnalysis, calculateOpportunityCostData } from '../lib/reportGenerator';
+import { CreditCard, Mic, Sparkles, Brain } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 // Transaction interface is now imported from dataTransformation
@@ -48,6 +49,8 @@ export default function Home() {
   const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
   const [cardStats, setCardStats] = useState<CardInfo[]>([]);
   const [monthlySpending, setMonthlySpending] = useState<MonthlySpending[]>([]);
+  const [generatingAI, setGeneratingAI] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   
   // For now, use hardcoded values - you can get these from URL params or state later
   const limit = 50;
@@ -133,6 +136,89 @@ export default function Home() {
 
     loadData();
   }, [router]);
+
+  // Handle hash navigation to AI report section
+  useEffect(() => {
+    const handleHashScroll = () => {
+      if (window.location.hash === '#ai-financial-report') {
+        // Small delay to ensure content is loaded
+        setTimeout(() => {
+          const aiReportElement = document.getElementById('ai-financial-report')
+          if (aiReportElement) {
+            aiReportElement.scrollIntoView({ 
+              behavior: 'smooth',
+              block: 'center'
+            })
+          }
+        }, 500)
+      }
+    }
+
+    // Check hash on mount
+    handleHashScroll()
+
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashScroll)
+    
+    return () => {
+      window.removeEventListener('hashchange', handleHashScroll)
+    }
+  }, []);
+
+  const generateReportWithAI = async () => {
+    if (monthlySpending.length === 0 || allSortedTransactions.length === 0) {
+      console.log('⚠️ No data available for report generation');
+      return;
+    }
+
+    setGeneratingAI(true);
+    
+    try {
+      // Calculate category spending for opportunity cost analysis
+      const last12MonthsData = monthlySpending.slice(0, 12);
+      const targetCategories = ['Food & Dining', 'Retail & Shopping', 'Transportation', 'Entertainment & Recreation'];
+      
+      const categorySpending = {
+        'Food & Dining': 0,
+        'Retail & Shopping': 0,
+        'Transportation': 0,
+        'Entertainment & Recreation': 0
+      };
+      
+      targetCategories.forEach(category => {
+        categorySpending[category as keyof typeof categorySpending] = last12MonthsData.reduce((total, month) => {
+          return total + (month.categories[category] || 0);
+        }, 0);
+      });
+
+      console.log('🔄 Generating comprehensive financial report with AI analysis...');
+      
+      const { report, aiAnalysis } = await generateReportWithAIAnalysis(
+        monthlySpending,
+        categorySpending,
+        allSortedTransactions,
+        exchangeRates,
+        1 // Default household size
+      );
+
+      // Display AI analysis in UI
+      setAiAnalysis(aiAnalysis);
+      
+      // Also log to console
+      console.log('🤖 AI FINANCIAL ANALYSIS');
+      console.log('=========================');
+      console.log(aiAnalysis);
+      console.log('=========================');
+      
+      console.log('✅ AI-enhanced report generation complete!');
+      
+    } catch (error) {
+      console.error('❌ Error generating AI analysis:', error);
+      setAiAnalysis('Unable to generate AI analysis. Please check your internet connection and try again.');
+    } finally {
+      setGeneratingAI(false);
+    }
+  };
 
   // Show loading state
   if (loading) {
@@ -432,6 +518,79 @@ export default function Home() {
             exchangeRates={exchangeRates}
           />
         </div>
+
+        {/* AI Financial Report Card */}
+        <div id="ai-financial-report" className="mt-12 mb-8">
+          <div className="bg-neutral-900 border border-gray-800 rounded-xl p-6">
+            <div className="flex items-start gap-4">
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="text-xl font-light text-white">AI Financial Behavior Analysis</h3>
+                  <Brain className="w-4 h-4 text-blue-400" />
+                </div>
+                
+                <p className="text-gray-400 mb-4 leading-relaxed">
+                  Get instant AI-powered insights into your spending patterns, savings opportunities, 
+                  and environmental impact. Our analysis covers your last 12 months of transaction data 
+                  and provides personalized financial recommendations.
+                </p>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={generateReportWithAI}
+                    disabled={loading || monthlySpending.length === 0 || generatingAI}
+                    className="w-full inline-flex items-center justify-center px-6 py-3 text-sm font-medium text-black bg-white hover:bg-gray-200 disabled:bg-gray-600 disabled:text-gray-400 transition-colors"
+                  >
+                    <Brain className="w-4 h-4 mr-2" />
+                    {generatingAI ? 'Analyzing Your Data...' : 'Generate AI Report'}
+                  </button>
+                </div>
+
+                <div className="mt-4 flex items-center gap-4 text-xs text-gray-500">
+                  <span className="flex items-center gap-1">
+                    <div className="w-2 h-2 mr-2 bg-blue-400 rounded-full"></div>
+                    Spending Analysis
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <div className="w-2 h-2 mr-2 bg-green-400 rounded-full"></div>
+                    CO2 Impact
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <div className="w-2 h-2 mr-2 bg-yellow-400 rounded-full"></div>
+                    Investment Insights
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* AI Analysis Display */}
+        {aiAnalysis && (
+          <div className="mb-8">
+            <div className="bg-neutral-900 border border-gray-800 rounded-xl p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm font-bold">AI</span>
+                </div>
+                <h3 className="text-xl font-light text-white">Your Financial Behavior Analysis</h3>
+              </div>
+              
+              <div className="prose prose-invert max-w-none">
+                <div className="text-gray-300 leading-relaxed whitespace-pre-wrap">
+                  {aiAnalysis}
+                </div>
+              </div>
+              
+              <div className="mt-6 pt-4 border-t border-gray-700">
+                <p className="text-xs text-gray-500">
+                  Generated by AI • Based on your last 12 months of transaction data
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* AI Voice Agent Card */}
         <div className="mt-12 mb-8">

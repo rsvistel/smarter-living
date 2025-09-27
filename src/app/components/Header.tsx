@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { isAuthenticated, logout, getCurrentUser } from '../../lib/api'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Menu, LogOut, CreditCard, X, BookOpen } from 'lucide-react'
+import { Menu, LogOut, CreditCard, X, BookOpen, Brain } from 'lucide-react'
 
 export default function Header() {
   const [user, setUser] = useState<{name?: string; email?: string} | null>(null)
@@ -70,6 +70,23 @@ export default function Header() {
 
   const closeSidebar = () => setSidebarOpen(false)
 
+  const scrollToAIReport = () => {
+    // Check if we're already on the homepage
+    if (window.location.pathname === '/') {
+      // We're on homepage, scroll to the AI report section
+      const aiReportElement = document.getElementById('ai-financial-report')
+      if (aiReportElement) {
+        aiReportElement.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'center'
+        })
+      }
+    } else {
+      // We're on a different page, navigate to homepage with hash
+      router.push('/#ai-financial-report')
+    }
+  }
+
   return (
     <>
       <div className="flex items-center justify-between gap-3 p-4 backdrop-blur-md fixed top-0 right-0 left-0 border-b border-neutral-900 z-10">
@@ -87,17 +104,26 @@ export default function Header() {
               </div>
             </div>
             <div className="flex gap-3">
+              <button
+                onClick={scrollToAIReport}
+                className="text-blue-400 hover:text-blue-300 cursor-pointer transition-colors"
+                title="AI Financial Report"
+              >
+                <Brain className="w-5 h-5" />
+              </button>
               <a
                 href="https://elevenlabs.io/app/talk-to?agent_id=agent_2601k638558re60tj4jf0w8yrjj9"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-gray-300 hover:text-white cursor-pointer transition-colors"
+                title="AI Voice Coach"
               >
                 <BookOpen className="w-5 h-5" />
               </a>
               <Menu 
                 onClick={() => setSidebarOpen(true)}
                 className="w-5 h-5 text-gray-300 hover:text-white cursor-pointer transition-colors" 
+                title="Menu"
               />
             </div>
           </div>
