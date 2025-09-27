@@ -1902,7 +1902,7 @@ app.use(
   }),
 );
 
-app.listen(8000, () => {
+app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`API Documentation available at http://localhost:${PORT}/docs`);
 });
