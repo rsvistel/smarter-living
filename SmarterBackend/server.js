@@ -440,9 +440,20 @@ app.get('/cards', async (req, res) => {
 
     const allTransactions = dataReader.getTransactions();
     const uniqueCardIds = [...new Set(allTransactions.map(transaction => transaction.cardId))];
-    
-    // Count transactions per card
-    const cardDetails = uniqueCardIds.map(cardId => {
+
+    // Get all card IDs that are already assigned to users
+    const assignedCards = await prisma.card.findMany({
+      select: {
+        cardId: true
+      }
+    });
+    const assignedCardIds = new Set(assignedCards.map(card => card.cardId));
+
+    // Filter out assigned cards to get only unassigned cards
+    const unassignedCardIds = uniqueCardIds.filter(cardId => !assignedCardIds.has(cardId));
+
+    // Count transactions per unassigned card
+    const cardDetails = unassignedCardIds.map(cardId => {
       const transactionCount = allTransactions.filter(transaction => transaction.cardId === cardId).length;
       return {
         cardId,
@@ -452,7 +463,7 @@ app.get('/cards', async (req, res) => {
 
     res.json({
       cards: cardDetails,
-      count: uniqueCardIds.length
+      count: unassignedCardIds.length
     });
   } catch (error) {
     console.error('Error loading transaction data:', error);
