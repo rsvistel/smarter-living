@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { signIn } from 'next-auth/react'
+import { login } from '../../../lib/api'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
@@ -21,17 +21,13 @@ export default function SignIn() {
     setError('')
 
     try {
-      const result = await signIn('credentials', {
-        email,
-        password,
-        redirect: false,
-        callbackUrl,
-      })
+      const response = await login({ email, password })
 
-      if (result?.ok) {
+      if (response.data) {
+        // Login successful, JWT token is automatically stored
         router.push(callbackUrl)
       } else {
-        setError('Invalid email or password. Please try again.')
+        setError(response.error || 'Invalid email or password. Please try again.')
       }
     } catch (error) {
       setError('Something went wrong. Please try again.')

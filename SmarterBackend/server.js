@@ -381,7 +381,7 @@ app.get('/transactions/card/:cardId', async (req, res) => {
  *                   type: string
  *                   example: Failed to load transaction data
  */
-app.get('/cards', authenticateToken, async (req, res) => {
+app.get('/cards', async (req, res) => {
   try {
     if (!dataReader.isLoaded()) {
       await dataReader.loadData();
@@ -1031,6 +1031,281 @@ app.get('/auth/me', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Get current user error:', error);
+    res.status(500).json({
+      message: 'Internal server error'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /users/cards:
+ *   post:
+ *     summary: Add a card to user's account
+ *     description: Associates a card ID with the authenticated user
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - cardId
+ *             properties:
+ *               cardId:
+ *                 type: string
+ *                 example: "4240ZXIAGHNR1012"
+ *     responses:
+ *       201:
+ *         description: Card added successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Card added successfully
+ *                 card:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                       example: 1
+ *                     cardId:
+ *                       type: string
+ *                       example: "4240ZXIAGHNR1012"
+ *                     userId:
+ *                       type: integer
+ *                       example: 1
+ *                     isActive:
+ *                       type: boolean
+ *                       example: true
+ *       400:
+ *         description: Invalid input or card already exists
+ *       401:
+ *         description: Access token required
+ *       403:
+ *         description: Invalid or expired token
+ *       500:
+ *         description: Internal server error
+ */
+app.post('/users/cards', authenticateToken, async (req, res) => {
+  try {
+    const { cardId } = req.body;
+    const userId = req.user.userId;
+
+    // Validate input
+    if (!cardId) {
+      return res.status(400).json({
+        message: 'Card ID is required'
+      });
+    }
+
+    // Check if card already exists for this user
+    const existingCard = await prisma.card.findFirst({
+      where: {
+        cardId: cardId,
+        userId: userId
+      }
+    });
+
+    if (existingCard) {
+      return res.status(400).json({
+        message: 'Card already added to your account'
+      });
+    }
+
+    // Add card to user's account
+    const newCard = await prisma.card.create({
+      data: {
+        cardId: cardId,
+        userId: userId,
+        isActive: true
+      }
+    });
+
+    res.status(201).json({
+      message: 'Card added successfully',
+      card: newCard
+    });
+  } catch (error) {
+    console.error('Add card error:', error);
+    res.status(500).json({
+      message: 'Internal server error'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /users/me/transactions:
+ *   get:
+ *     summary: Get authenticated user's cards and transactions
+ *     description: Returns all cards and transactions for the authenticated user
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User's cards and transactions retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 userId:
+ *                   type: integer
+ *                   example: 1
+ *                 cards:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       cardId:
+ *                         type: string
+ *                         example: "4240ZXIAGHNR1012"
+ *                       transactions:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                       transactionCount:
+ *                         type: integer
+ *                         example: 25
+ *                 totalTransactions:
+ *                   type: integer
+ *                   example: 75
+ *                 cardCount:
+ *                   type: integer
+ *                   example: 3
+ *       401:
+ *         description: Access token required
+ *       403:
+ *         description: Invalid or expired token
+ *       404:
+ *         description: User has no cards
+ *       500:
+ *         description: Internal server error
+ */
+app.get('/users/me/transactions', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    if (!dataReader.isLoaded()) {
+      await dataReader.loadData();
+    }
+
+    // Get user's cards from database
+    const userCards = await prisma.card.findMany({
+      where: {
+        userId: userId,
+        isActive: true
+      },
+      select: {
+        cardId: true
+      }
+    });
+
+    if (userCards.length === 0) {
+      return res.status(404).json({
+        message: 'No cards found for user',
+        userId: userId,
+        cards: [],
+        totalTransactions: 0,
+        cardCount: 0
+      });
+    }
+
+    // Extract card IDs
+    const userCardIds = userCards.map(card => card.cardId);
+    const allTransactions = dataReader.getTransactions();
+
+    // Group transactions by card ID
+    const cardGroups = [];
+    let totalTransactions = 0;
+
+    for (const cardId of userCardIds) {
+      const cardTransactions = allTransactions.filter(transaction => transaction.cardId === cardId);
+
+      if (cardTransactions.length > 0) {
+        cardGroups.push({
+          cardId: cardId,
+          transactions: cardTransactions,
+          transactionCount: cardTransactions.length
+        });
+        totalTransactions += cardTransactions.length;
+      } else {
+        // Include cards even if they have no transactions
+        cardGroups.push({
+          cardId: cardId,
+          transactions: [],
+          transactionCount: 0
+        });
+      }
+    }
+
+    res.json({
+      userId: userId,
+      cards: cardGroups,
+      totalTransactions: totalTransactions,
+      cardCount: cardGroups.length
+    });
+  } catch (error) {
+    console.error('Error fetching user transactions:', error);
+    res.status(500).json({
+      message: 'Internal server error'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: Logout user
+ *     description: Logs out the authenticated user and invalidates the session
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Logout successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Logout successful
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *       401:
+ *         description: Access token required
+ *       403:
+ *         description: Invalid or expired token
+ */
+app.post('/auth/logout', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const email = req.user.email;
+    
+    // Log the logout event for security audit
+    console.log(`User logout: ${email} (ID: ${userId}) at ${new Date().toISOString()}`);
+    
+    // Note: With stateless JWT, we can't invalidate the token server-side
+    // In production, you might want to:
+    // 1. Add token to a blacklist/Redis cache
+    // 2. Use shorter token expiration times
+    // 3. Implement refresh token rotation
+    
+    res.json({
+      message: 'Logout successful',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
     res.status(500).json({
       message: 'Internal server error'
     });

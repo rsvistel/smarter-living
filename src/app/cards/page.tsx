@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { fetchUserTransactions, fetchAllCards, ApiCardsResponse } from '../../lib/api';
+import { fetchMyTransactions, fetchAllCards, addCardToUser, ApiCardsResponse } from '../../lib/api';
 import { transformApiData, getExchangeRates, CardInfo } from '../../lib/dataTransformation';
 import { ArrowLeft, CreditCard, Plus, X } from 'lucide-react';
 import Link from 'next/link';
@@ -9,16 +9,18 @@ import Link from 'next/link';
 export default function CardsPage() {
   const [cardStats, setCardStats] = useState<CardInfo[]>([]);
   const [allCards, setAllCards] = useState<Array<{cardId: string; transactionCount: number}>>([]);
+  const [userCardIds, setUserCardIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAllCards, setShowAllCards] = useState(false);
   const [loadingAllCards, setLoadingAllCards] = useState(false);
+  const [addingCardId, setAddingCardId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadCardData() {
       try {
         // Fetch exchange rates and transaction data
         const exchangeRates = await getExchangeRates();
-        const apiResponse = await fetchUserTransactions(3); // Using default userId for now
+        const apiResponse = await fetchMyTransactions(); // Fetch authenticated user's data
         
         if (apiResponse.error || !apiResponse.data) {
           throw new Error(`API Error: ${apiResponse.error || 'No data received'}`);
@@ -27,6 +29,10 @@ export default function CardsPage() {
         // Transform API data to get card stats
         const transformedData = transformApiData(apiResponse.data, exchangeRates);
         setCardStats(transformedData.cardStats);
+        
+        // Extract user's card IDs for comparison
+        const userCards = apiResponse.data.cards.map(card => card.cardId);
+        setUserCardIds(userCards);
       } catch (error) {
         console.error('Error fetching card data:', error);
       } finally {
@@ -170,33 +176,55 @@ export default function CardsPage() {
                      scrollbarWidth: 'none',
                      msOverflowStyle: 'none'
                    }}>
-                {allCards.map((card) => (
-                  <div 
-                    key={card.cardId}
-                    className="flex items-center justify-between p-4 bg-neutral-900 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <CreditCard className="w-5 h-5 text-gray-400" />
-                      <div>
-                        <span className="font-mono text-white block">
-                          {card.cardId.replace(/(.{4})/g, '$1 ').trim()}
-                        </span>
-                        <span className="text-sm text-gray-400">
-                          {card.transactionCount} transactions
-                        </span>
-                      </div>
-                    </div>
-                    <button 
-                      className="px-3 py-1 text-sm font-medium text-black bg-white hover:bg-gray-200 transition-colors"
-                      onClick={() => {
-                        // TODO: Add card to user's account
-                        console.log('Add card:', card.cardId);
-                      }}
+                {allCards.map((card) => {
+                  const isAlreadyAdded = userCardIds.includes(card.cardId);
+                  const isCurrentlyAdding = addingCardId === card.cardId;
+                  
+                  return (
+                    <div 
+                      key={card.cardId}
+                      className="flex items-center justify-between p-4 bg-neutral-900 transition-colors"
                     >
-                      Add
-                    </button>
-                  </div>
-                ))}
+                      <div className="flex items-center gap-3">
+                        <CreditCard className="w-5 h-5 text-gray-400" />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-white block">
+                              {card.cardId.replace(/(.{4})/g, '$1 ').trim()}
+                            </span>
+                          </div>
+                          <span className="text-sm text-gray-400">
+                            {card.transactionCount} transactions
+                          </span>
+                        </div>
+                      </div>
+                      <button 
+                        className="px-3 py-1 text-sm font-medium text-black bg-white hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={isAlreadyAdded || isCurrentlyAdding}
+                        onClick={async () => {
+                          if (isAlreadyAdded) return;
+                          
+                          setAddingCardId(card.cardId);
+                          try {
+                            const response = await addCardToUser(card.cardId);
+                            if (response.data) {
+                              // Reload the page to reflect changes
+                              window.location.reload();
+                            } else {
+                              alert(`Error: ${response.error}`);
+                            }
+                          } catch (error) {
+                            alert('Failed to add card');
+                          } finally {
+                            setAddingCardId(null);
+                          }
+                        }}
+                      >
+                        {isCurrentlyAdding ? 'Adding...' : isAlreadyAdded ? 'Added' : 'Add'}
+                      </button>
+                    </div>
+                  );
+                })}
                 
                 {allCards.length === 0 && (
                   <div className="text-center py-8">

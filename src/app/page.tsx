@@ -1,12 +1,15 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import { CATEGORY_ICONS } from './mcc-mapping';
 import MonthlySpendingChart from './components/MonthlySpendingChart';
 import TransactionList from './components/TransactionList';
 import MonthlySpendingSection from './components/MonthlySpendingSection';
 import FoodSavingsInsight from './components/OpportunityCostVisualizer';
-import { fetchUserTransactions } from '../lib/api';
+import { fetchMyTransactions, isAuthenticated } from '../lib/api';
 import { transformApiData, getExchangeRates, Transaction, CardInfo, MonthlySpending, CURRENCY_CODES } from '../lib/dataTransformation';
-import { getAuthSession } from '../lib/auth';
-import { CreditCard } from 'lucide-react';
+import { CreditCard, Mic, Bot, Sparkles } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 // Transaction interface is now imported from dataTransformation
 
@@ -37,88 +40,147 @@ function formatDate(dateStr: string): string {
   return dateStr;
 }
 
-interface PageProps {
-  searchParams: Promise<{ limit?: string; cards?: string; sort?: 'newest' | 'oldest' }>;
-}
-
-// CardInfo and MonthlySpending interfaces are now imported from dataTransformation
-
-export default async function Home({ searchParams }: PageProps) {
-  const session = await getAuthSession()
-  const params = await searchParams;
-  const limit = parseInt(params.limit || '50', 10);
-  const selectedCards = params.cards ? params.cards.split(',').filter(Boolean) : [];
-  const sortOrder = params.sort || 'newest';
+export default function Home() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [allSortedTransactions, setAllSortedTransactions] = useState<Transaction[]>([]);
+  const [totalTransactions, setTotalTransactions] = useState(0);
+  const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
+  const [cardStats, setCardStats] = useState<CardInfo[]>([]);
+  const [monthlySpending, setMonthlySpending] = useState<MonthlySpending[]>([]);
+  const [foodDiningLast12Months, setFoodDiningLast12Months] = useState(0);
+  
+  // For now, use hardcoded values - you can get these from URL params or state later
+  const limit = 50;
+  const selectedCards: string[] = [];
+  const sortOrder = 'newest';
   const itemsPerPage = 50;
 
-  // Get userId from session, fallback to 1 if not available
-  const userId = session?.userId || 3;
-  
-  let transactions: Transaction[] = [];
-  let allSortedTransactions: Transaction[] = [];
-  let totalTransactions = 0;
-  let exchangeRates: Record<string, number> = {};
-  let cardStats: CardInfo[] = [];
-  let monthlySpending: MonthlySpending[] = [];
-  let foodDiningLast12Months = 0;
-  
-  try {
-    // Fetch exchange rates first
-    exchangeRates = await getExchangeRates();
-    
-    // Fetch transaction data from API
-    const apiResponse = await fetchUserTransactions(userId);
-    
-    if (apiResponse.error || !apiResponse.data) {
-      throw new Error(`API Error: ${apiResponse.error || 'No data received'}`);
+  useEffect(() => {
+    // Check authentication first
+    if (!isAuthenticated()) {
+      router.push('/auth/signin?message=Please sign in to access your account.');
+      return;
     }
-    
-    // Transform API data to legacy format
-    const transformedData = transformApiData(apiResponse.data, exchangeRates);
-    const allTransactions = transformedData.allTransactions;
-    cardStats = transformedData.cardStats;
-    
-    // Filter transactions by selected cards if specified
-    const filteredTransactions = selectedCards.length > 0
-      ? allTransactions.filter(t => selectedCards.includes(t.CardId))
-      : allTransactions;
-    
-    // Sort transactions chronologically
-    allSortedTransactions = [...filteredTransactions].sort((a, b) => {
-      const dateA = new Date(a.trx_date);
-      const dateB = new Date(b.trx_date);
-      return sortOrder === 'newest' 
-        ? dateB.getTime() - dateA.getTime()
-        : dateA.getTime() - dateB.getTime();
-    });
-    
-    totalTransactions = allSortedTransactions.length;
-    
-    transactions = allSortedTransactions.slice(0, Math.min(limit, 50)); // Initial load
-    
-    // Use monthly spending from transformed data, but filter if cards are selected
-    if (selectedCards.length > 0) {
-      // Recalculate monthly spending for filtered cards
-      const filteredApiData = {
-        ...apiResponse.data,
-        cards: apiResponse.data.cards.filter(card => selectedCards.includes(card.cardId))
-      };
-      const filteredTransformed = transformApiData(filteredApiData, exchangeRates);
-      monthlySpending = filteredTransformed.monthlySpending;
-    } else {
-      monthlySpending = transformedData.monthlySpending;
+
+    async function loadData() {
+      try {
+        setLoading(true);
+        
+        // Fetch exchange rates first
+        const rates = await getExchangeRates();
+        setExchangeRates(rates);
+        
+        // Fetch authenticated user's transaction data from API
+        const apiResponse = await fetchMyTransactions();
+        
+        if (apiResponse.error || !apiResponse.data) {
+          throw new Error(`API Error: ${apiResponse.error || 'No data received'}`);
+        }
+        
+        // Transform API data to legacy format
+        const transformedData = transformApiData(apiResponse.data, rates);
+        const allTransactions = transformedData.allTransactions;
+        setCardStats(transformedData.cardStats);
+        
+        // Filter transactions by selected cards if specified
+        const filteredTransactions = selectedCards.length > 0
+          ? allTransactions.filter(t => selectedCards.includes(t.CardId))
+          : allTransactions;
+        
+        // Sort transactions chronologically
+        const sortedTransactions = [...filteredTransactions].sort((a, b) => {
+          const dateA = new Date(a.trx_date);
+          const dateB = new Date(b.trx_date);
+          return sortOrder === 'newest' 
+            ? dateB.getTime() - dateA.getTime()
+            : dateA.getTime() - dateB.getTime();
+        });
+        
+        setAllSortedTransactions(sortedTransactions);
+        setTotalTransactions(sortedTransactions.length);
+        setTransactions(sortedTransactions.slice(0, Math.min(limit, 50))); // Initial load
+        
+        // Use monthly spending from transformed data, but filter if cards are selected
+        let monthlySpendingData;
+        if (selectedCards.length > 0) {
+          // Recalculate monthly spending for filtered cards
+          const filteredApiData = {
+            ...apiResponse.data,
+            cards: apiResponse.data.cards.filter(card => selectedCards.includes(card.cardId))
+          };
+          const filteredTransformed = transformApiData(filteredApiData, rates);
+          monthlySpendingData = filteredTransformed.monthlySpending;
+        } else {
+          monthlySpendingData = transformedData.monthlySpending;
+        }
+        setMonthlySpending(monthlySpendingData);
+        
+        // Calculate Food & Dining spending over last 12 months
+        const last12MonthsData = monthlySpendingData.slice(0, 12);
+        const foodDining = last12MonthsData.reduce((total, month) => {
+          return total + (month.categories['Food & Dining'] || 0);
+        }, 0);
+        setFoodDiningLast12Months(foodDining);
+        
+      } catch (error) {
+        console.error('Error fetching transaction data:', error);
+        // Authentication errors will be handled by the API automatically
+      } finally {
+        setLoading(false);
+      }
     }
-    
-    // Current month spending is handled by components
-    
-    // Calculate Food & Dining spending over last 12 months
-    const last12MonthsData = monthlySpending.slice(0, 12);
-    foodDiningLast12Months = last12MonthsData.reduce((total, month) => {
-      return total + (month.categories['Food & Dining'] || 0);
-    }, 0);
-    
-  } catch (error) {
-    console.error('Error fetching transaction data:', error);
+
+    loadData();
+  }, [router]);
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white text-lg">Loading your financial data...</div>
+      </div>
+    );
+  }
+
+  // Show fullscreen CTA if user has no cards
+  if (cardStats.length === 0) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center px-4">
+        <div className="text-center max-w-md mx-auto">
+          {/* Large Card Icon */}
+          <div className="mb-8 flex justify-center">
+            <div className="relative">
+              <CreditCard className="w-24 h-24 text-gray-600" />
+              <div className="absolute -top-2 -right-2 w-8 h-8 bg-white rounded-full flex items-center justify-center">
+                <span className="text-black text-xl font-bold">+</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Heading */}
+          <h1 className="text-3xl font-light text-white mb-4">
+            Welcome to Smarter Living
+          </h1>
+          
+          {/* Description */}
+          <p className="text-gray-400 text-lg mb-8 leading-relaxed">
+            Start tracking your spending by adding your first card. 
+            Get insights into your financial habits and discover ways to save.
+          </p>
+
+          {/* CTA Button */}
+          <a
+            href="/cards"
+            className="inline-flex items-center justify-center px-8 py-4 text-lg font-medium text-black bg-white hover:bg-gray-200 transition-colors rounded-lg shadow-lg"
+          >
+            <CreditCard className="w-5 h-5 mr-3" />
+            Add Your First Card
+          </a>
+        </div>
+      </div>
+    );
   }
   
   const hasMoreTransactions = limit < totalTransactions;
@@ -170,14 +232,12 @@ export default async function Home({ searchParams }: PageProps) {
           <div className="block mb-6 md:hidden md:mb-0">
             <div className="flex gap-4 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
               {cardStats.slice(0, 1).map((card) => {
-                const isSelected = selectedCards.includes(card.id);
                 return (
-                  <a
+                  <div
                     key={card.id}
-                    href={toggleCard(card.id)}
                     className="flex-shrink-0 w-full"
                   >
-                    <div className="relative w-full aspect-[1.586/1] bg-gradient-to-r from-gray-800 to-gray-900 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 p-6 border border-gray-700">
+                    <div className="relative w-full aspect-[1.586/1] bg-gradient-to-r from-gray-800 to-gray-900 rounded-xl shadow-lg p-6 border border-gray-700">
                       {/* Credit card design elements */}
                       <div className="absolute top-4 right-4">
                         <div className="w-8 h-6 bg-gray-600 rounded-sm opacity-60"></div>
@@ -193,7 +253,7 @@ export default async function Home({ searchParams }: PageProps) {
                       {/* Subtle pattern/texture */}
                       <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-transparent rounded-xl"></div>
                     </div>
-                  </a>
+                  </div>
                 );
               })}
             </div>
@@ -216,14 +276,12 @@ export default async function Home({ searchParams }: PageProps) {
           <div className="hidden md:block">
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
               {cardStats.slice(0, 3).map((card) => {
-                const isSelected = selectedCards.includes(card.id);
                 return (
-                  <a
+                  <div
                     key={card.id}
-                    href={toggleCard(card.id)}
                     className="block w-full max-w-sm mx-auto"
                   >
-                    <div className="relative w-full aspect-[1.586/1] bg-gradient-to-r from-gray-800 to-gray-900 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 p-6 border border-gray-700">
+                    <div className="relative w-full aspect-[1.586/1] bg-gradient-to-r from-gray-800 to-gray-900 rounded-xl shadow-lg p-6 border border-gray-700">
                       {/* Credit card design elements */}
                       <div className="absolute top-4 right-4">
                         <div className="w-8 h-6 bg-gray-600 rounded-sm opacity-60"></div>
@@ -239,7 +297,7 @@ export default async function Home({ searchParams }: PageProps) {
                       {/* Subtle pattern/texture */}
                       <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-transparent rounded-xl"></div>
                     </div>
-                  </a>
+                  </div>
                 );
               })}
             </div>
@@ -366,6 +424,55 @@ export default async function Home({ searchParams }: PageProps) {
             allTransactions={allSortedTransactions}
             exchangeRates={exchangeRates}
           />
+        </div>
+
+        {/* AI Voice Agent Card */}
+        <div className="mt-12 mb-8">
+          <div className="bg-neutral-900 border border-gray-800 rounded-xl p-6">
+            <div className="flex items-start gap-4">
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="text-xl font-light text-white">AI Financial Coach</h3>
+                  <Sparkles className="w-4 h-4 text-white" />
+                </div>
+                
+                <p className="text-gray-400 mb-4 leading-relaxed">
+                  Get personalized financial advice through our AI voice agent. 
+                  Ask questions about budgeting, saving strategies, or get insights 
+                  about your spending patterns - all through natural conversation.
+                </p>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <a
+                    href="https://elevenlabs.io/app/talk-to?agent_id=agent_2601k638558re60tj4jf0w8yrjj9"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full inline-flex items-center justify-center px-6 py-3 text-sm font-medium text-black bg-white hover:bg-gray-200 transition-colors"
+                  >
+                    <Mic className="w-4 h-4 mr-2" />
+                    Talk to AI Coach
+                  </a>
+                </div>
+
+                <div className="mt-4 flex items-center gap-4 text-xs text-gray-500">
+                  <span className="flex items-center gap-1">
+                    <div className="w-2 h-2 mr-2 bg-gray-400 rounded-full"></div>
+                    Available 24/7
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <div className="w-2 h-2 mr-2 bg-gray-400 rounded-full"></div>
+                    Voice & Text
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <div className="w-2 h-2 mr-2 bg-gray-400 rounded-full"></div>
+                    Fine-tuned model
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
