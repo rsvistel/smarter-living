@@ -5,6 +5,7 @@ import MonthlySpendingSection from './components/MonthlySpendingSection';
 import FoodSavingsInsight from './components/OpportunityCostVisualizer';
 import { fetchUserTransactions } from '../lib/api';
 import { transformApiData, getExchangeRates, Transaction, CardInfo, MonthlySpending, CURRENCY_CODES } from '../lib/dataTransformation';
+import { getAuthSession } from '../lib/auth';
 
 // Transaction interface is now imported from dataTransformation
 
@@ -42,11 +43,15 @@ interface PageProps {
 // CardInfo and MonthlySpending interfaces are now imported from dataTransformation
 
 export default async function Home({ searchParams }: PageProps) {
+  const session = await getAuthSession()
   const params = await searchParams;
   const limit = parseInt(params.limit || '50', 10);
   const selectedCards = params.cards ? params.cards.split(',').filter(Boolean) : [];
   const sortOrder = params.sort || 'newest';
   const itemsPerPage = 50;
+
+  // Get userId from session, fallback to 1 if not available
+  const userId = session?.userId || 1;
   
   let transactions: Transaction[] = [];
   let allSortedTransactions: Transaction[] = [];
@@ -61,7 +66,7 @@ export default async function Home({ searchParams }: PageProps) {
     exchangeRates = await getExchangeRates();
     
     // Fetch transaction data from API
-    const apiResponse = await fetchUserTransactions(1);
+    const apiResponse = await fetchUserTransactions(userId);
     
     if (apiResponse.error || !apiResponse.data) {
       throw new Error(`API Error: ${apiResponse.error || 'No data received'}`);
