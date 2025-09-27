@@ -441,7 +441,7 @@ export default function Home() {
               {/* Content */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-2">
-                  <h3 className="text-xl font-light text-white">AI Financial Coach</h3>
+                  <h3 className="text-xl font-light text-white">Rappen - Your AI Personal Finance Coach</h3>
                   <Sparkles className="w-4 h-4 text-white" />
                 </div>
                 
