@@ -6,6 +6,7 @@ import { Bell, Menu, LogOut } from 'lucide-react'
 
 export default function Header() {
   const { data: session, status } = useSession()
+  console.log(session, "session")
 
   return (
     <div className="flex items-center justify-between gap-3 p-4 backdrop-blur-md fixed top-0 right-0 left-0 border-b border-neutral-900 z-10">

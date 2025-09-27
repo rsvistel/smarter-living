@@ -1,15 +1,48 @@
 require('dotenv').config();
 const express = require('express');
+const cors = require('cors');
 const swaggerJSDoc = require('swagger-jsdoc');
 const { apiReference } = require('@scalar/express-api-reference');
 const { Pool } = require('pg');
 const { PrismaClient } = require('./generated/prisma');
 const DataReader = require('./services/DataReader');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
 const dataReader = new DataReader();
+
+// JWT Secret - in production, use environment variable
+const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
+
+// JWT middleware for protected routes
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+  if (!token) {
+    return res.status(401).json({ message: 'Access token required' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ message: 'Invalid or expired token' });
+    }
+    req.user = user;
+    next();
+  });
+};
+
+// Enable CORS for all routes - MUST be before route definitions
+app.use(cors({
+  origin: true, // Allow all origins in development
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
+}));
+
+app.use(express.json());
 
 // User-Card mapping configuration
 const USER_CARD_MAPPING = {
@@ -348,7 +381,7 @@ app.get('/transactions/card/:cardId', async (req, res) => {
  *                   type: string
  *                   example: Failed to load transaction data
  */
-app.get('/cards', async (req, res) => {
+app.get('/cards', authenticateToken, async (req, res) => {
   try {
     if (!dataReader.isLoaded()) {
       await dataReader.loadData();
@@ -356,9 +389,18 @@ app.get('/cards', async (req, res) => {
 
     const allTransactions = dataReader.getTransactions();
     const uniqueCardIds = [...new Set(allTransactions.map(transaction => transaction.cardId))];
+    
+    // Count transactions per card
+    const cardDetails = uniqueCardIds.map(cardId => {
+      const transactionCount = allTransactions.filter(transaction => transaction.cardId === cardId).length;
+      return {
+        cardId,
+        transactionCount
+      };
+    }).sort((a, b) => a.cardId.localeCompare(b.cardId));
 
     res.json({
-      cardIds: uniqueCardIds.sort(),
+      cards: cardDetails,
       count: uniqueCardIds.length
     });
   } catch (error) {
@@ -465,7 +507,7 @@ app.get('/cards', async (req, res) => {
  *                   type: string
  *                   example: Failed to load transaction data
  */
-app.get('/users/transactions', async (req, res) => {
+app.get('/users/transactions', authenticateToken, async (req, res) => {
   try {
     if (!dataReader.isLoaded()) {
       await dataReader.loadData();
@@ -682,7 +724,6 @@ app.get('/users', async (req, res) => {
   }
 });
 
-app.use(express.json());
 
 /**
  * @swagger
@@ -907,15 +948,89 @@ app.post('/auth/login', async (req, res) => {
       });
     }
 
-    // Return user without password
+    // Generate JWT token
+    const token = jwt.sign(
+      { 
+        userId: user.id, 
+        email: user.email 
+      },
+      JWT_SECRET,
+      { expiresIn: '24h' } // Token expires in 24 hours
+    );
+
+    // Return user without password + token
     const { password: _, ...userWithoutPassword } = user;
 
     res.json({
       message: 'Login successful',
-      user: userWithoutPassword
+      user: userWithoutPassword,
+      token: token
     });
   } catch (error) {
     console.error('Login error:', error);
+    res.status(500).json({
+      message: 'Internal server error'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /auth/me:
+ *   get:
+ *     summary: Get current user from token
+ *     description: Returns the current authenticated user's information
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User information retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                       example: 1
+ *                     email:
+ *                       type: string
+ *                       example: user@example.com
+ *                     name:
+ *                       type: string
+ *                       example: John Doe
+ *       401:
+ *         description: Access token required
+ *       403:
+ *         description: Invalid or expired token
+ */
+app.get('/auth/me', authenticateToken, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      user: user
+    });
+  } catch (error) {
+    console.error('Get current user error:', error);
     res.status(500).json({
       message: 'Internal server error'
     });

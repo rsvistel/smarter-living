@@ -1,29 +1,71 @@
-import { fetchUserTransactions } from '../../lib/api';
+'use client';
+
+import { useState, useEffect } from 'react';
+import { fetchUserTransactions, fetchAllCards, ApiCardsResponse } from '../../lib/api';
 import { transformApiData, getExchangeRates, CardInfo } from '../../lib/dataTransformation';
-import { getAuthSession } from '../../lib/auth';
-import { ArrowLeft, CreditCard } from 'lucide-react';
+import { ArrowLeft, CreditCard, Plus, X } from 'lucide-react';
 import Link from 'next/link';
 
-export default async function CardsPage() {
-  const session = await getAuthSession();
-  const userId = session?.userId || 3;
-  
-  let cardStats: CardInfo[] = [];
-  
-  try {
-    // Fetch exchange rates and transaction data
-    const exchangeRates = await getExchangeRates();
-    const apiResponse = await fetchUserTransactions(userId);
-    
-    if (apiResponse.error || !apiResponse.data) {
-      throw new Error(`API Error: ${apiResponse.error || 'No data received'}`);
+export default function CardsPage() {
+  const [cardStats, setCardStats] = useState<CardInfo[]>([]);
+  const [allCards, setAllCards] = useState<Array<{cardId: string; transactionCount: number}>>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAllCards, setShowAllCards] = useState(false);
+  const [loadingAllCards, setLoadingAllCards] = useState(false);
+
+  useEffect(() => {
+    async function loadCardData() {
+      try {
+        // Fetch exchange rates and transaction data
+        const exchangeRates = await getExchangeRates();
+        const apiResponse = await fetchUserTransactions(3); // Using default userId for now
+        
+        if (apiResponse.error || !apiResponse.data) {
+          throw new Error(`API Error: ${apiResponse.error || 'No data received'}`);
+        }
+        
+        // Transform API data to get card stats
+        const transformedData = transformApiData(apiResponse.data, exchangeRates);
+        setCardStats(transformedData.cardStats);
+      } catch (error) {
+        console.error('Error fetching card data:', error);
+      } finally {
+        setLoading(false);
+      }
     }
-    
-    // Transform API data to get card stats
-    const transformedData = transformApiData(apiResponse.data, exchangeRates);
-    cardStats = transformedData.cardStats;
-  } catch (error) {
-    console.error('Error fetching card data:', error);
+
+    loadCardData();
+  }, []);
+
+  const handleAddNewCard = async () => {
+    setLoadingAllCards(true);
+    try {
+      console.log('Fetching all cards...');
+      const response = await fetchAllCards();
+      console.log('Response:', response);
+      
+      if (response.data) {
+        console.log('Cards:', response.data.cards);
+        setAllCards(response.data.cards);
+        setShowAllCards(true);
+      } else {
+        console.error('Failed to fetch all cards:', response.error);
+        alert(`Error: ${response.error}`);
+      }
+    } catch (error) {
+      console.error('Error fetching all cards:', error);
+      alert(`Error: ${error}`);
+    } finally {
+      setLoadingAllCards(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+      </div>
+    );
   }
 
   return (
@@ -92,9 +134,86 @@ export default async function CardsPage() {
         )}
 
 
-        <button className="w-full mt-6 cursor-pointer inline-flex justify-center items-center px-6 py-3 text-sm font-medium text-black bg-white hover:bg-gray-200 transition-colors">
-          <CreditCard className="w-4 h-4 mr-2" /> Add a New Card
-         </button>
+        <button 
+          onClick={handleAddNewCard}
+          disabled={loadingAllCards}
+          className="w-full mt-6 cursor-pointer inline-flex justify-center items-center px-6 py-3 text-sm font-medium text-black bg-white hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {loadingAllCards ? (
+            <>
+              <div className="animate-spin w-4 h-4 mr-2 border-2 border-black border-t-transparent rounded-full"></div>
+              Loading...
+            </>
+          ) : (
+            <>
+              <Plus className="w-4 h-4 mr-2" /> Add a New Card
+            </>
+          )}
+        </button>
+
+        {/* All Cards Modal */}
+        {showAllCards && (
+          <div className="fixed inset-0 backdrop-blur-md flex items-center justify-center p-4 z-50">
+            <div className="bg-black max-w-2xl w-full max-h-[80vh] flex flex-col">
+              <div className="flex items-center justify-between p-4 border-b border-neutral-900">
+                <h2 className="text-2xl font-light text-white">Available Cards</h2>
+                <button 
+                  onClick={() => setShowAllCards(false)}
+                  className="cursor-pointer text-white transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-hide"
+                   style={{
+                     scrollbarWidth: 'none',
+                     msOverflowStyle: 'none'
+                   }}>
+                {allCards.map((card) => (
+                  <div 
+                    key={card.cardId}
+                    className="flex items-center justify-between p-4 bg-neutral-900 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <CreditCard className="w-5 h-5 text-gray-400" />
+                      <div>
+                        <span className="font-mono text-white block">
+                          {card.cardId.replace(/(.{4})/g, '$1 ').trim()}
+                        </span>
+                        <span className="text-sm text-gray-400">
+                          {card.transactionCount} transactions
+                        </span>
+                      </div>
+                    </div>
+                    <button 
+                      className="px-3 py-1 text-sm font-medium text-black bg-white hover:bg-gray-200 transition-colors"
+                      onClick={() => {
+                        // TODO: Add card to user's account
+                        console.log('Add card:', card.cardId);
+                      }}
+                    >
+                      Add
+                    </button>
+                  </div>
+                ))}
+                
+                {allCards.length === 0 && (
+                  <div className="text-center py-8">
+                    <CreditCard className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                    <p className="text-gray-400">No additional cards available</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        
+        <style jsx>{`
+          .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+          }
+        `}</style>
         
       </div>
     </div>
