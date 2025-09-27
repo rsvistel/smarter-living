@@ -87,7 +87,14 @@ export default function Header() {
               </div>
             </div>
             <div className="flex gap-3">
-              <BookOpen className="w-5 h-5 text-gray-300 hover:text-white cursor-pointer transition-colors" />
+              <a
+                href="https://elevenlabs.io/app/talk-to?agent_id=agent_2601k638558re60tj4jf0w8yrjj9"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-300 hover:text-white cursor-pointer transition-colors"
+              >
+                <BookOpen className="w-5 h-5" />
+              </a>
               <Menu 
                 onClick={() => setSidebarOpen(true)}
                 className="w-5 h-5 text-gray-300 hover:text-white cursor-pointer transition-colors" 
