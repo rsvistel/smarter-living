@@ -1,18 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CATEGORY_ICONS } from './mcc-mapping';
-import MonthlySpendingChart from './components/MonthlySpendingChart';
 import TransactionList from './components/TransactionList';
 import MonthlySpendingSection from './components/MonthlySpendingSection';
-import FoodSavingsInsight from './components/OpportunityCostVisualizer';
 import { fetchMyTransactions, isAuthenticated } from '../lib/api';
-import { transformApiData, getExchangeRates, Transaction, CardInfo, MonthlySpending, CURRENCY_CODES } from '../lib/dataTransformation';
-import { CreditCard, Mic, Bot, Sparkles } from 'lucide-react';
+import { transformApiData, getExchangeRates, Transaction, CardInfo, MonthlySpending } from '../lib/dataTransformation';
+import { CreditCard, Mic, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 // Transaction interface is now imported from dataTransformation
 
+/*
 function formatAmount(amount: string, currency: string, exchangeRates: Record<string, number> = {}): React.JSX.Element | string {
   const numAmount = parseFloat(amount) * -1;
   if (isNaN(numAmount)) return amount;
@@ -27,35 +25,35 @@ function formatAmount(amount: string, currency: string, exchangeRates: Record<st
   const chfAmount = numAmount * exchangeRates[currency];
   return <div>{chfAmount.toFixed(2)} CHF<br/><span className="text-gray-400">{baseFormat}</span></div>
 }
+*/
 
-function formatDate(dateStr: string): string {
-  if (dateStr.length === 10) {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  }
-  return dateStr;
-}
+// function formatDate(dateStr: string): string {
+//   if (dateStr.length === 10) {
+//     const date = new Date(dateStr);
+//     return date.toLocaleDateString('en-US', {
+//       year: 'numeric',
+//       month: 'short',
+//       day: 'numeric'
+//     });
+//   }
+//   return dateStr;
+// }
 
 export default function Home() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [allSortedTransactions, setAllSortedTransactions] = useState<Transaction[]>([]);
-  const [totalTransactions, setTotalTransactions] = useState(0);
+  // const [totalTransactions, setTotalTransactions] = useState(0);
   const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
   const [cardStats, setCardStats] = useState<CardInfo[]>([]);
   const [monthlySpending, setMonthlySpending] = useState<MonthlySpending[]>([]);
-  const [foodDiningLast12Months, setFoodDiningLast12Months] = useState(0);
   
   // For now, use hardcoded values - you can get these from URL params or state later
   const limit = 50;
   const selectedCards: string[] = [];
   const sortOrder = 'newest';
-  const itemsPerPage = 50;
+  // const itemsPerPage = 50;
 
   useEffect(() => {
     // Check authentication first
@@ -85,9 +83,10 @@ export default function Home() {
         setCardStats(transformedData.cardStats);
         
         // Filter transactions by selected cards if specified
-        const filteredTransactions = selectedCards.length > 0
-          ? allTransactions.filter(t => selectedCards.includes(t.CardId))
-          : allTransactions;
+        // const filteredTransactions = selectedCards.length > 0
+        //   ? allTransactions.filter(t => selectedCards.includes(t.CardId))
+        //   : allTransactions;
+        const filteredTransactions = allTransactions;
         
         // Sort transactions chronologically
         const sortedTransactions = [...filteredTransactions].sort((a, b) => {
@@ -99,7 +98,7 @@ export default function Home() {
         });
         
         setAllSortedTransactions(sortedTransactions);
-        setTotalTransactions(sortedTransactions.length);
+        // setTotalTransactions(sortedTransactions.length);
         setTransactions(sortedTransactions.slice(0, Math.min(limit, 50))); // Initial load
         
         // Use monthly spending from transformed data, but filter if cards are selected
@@ -183,34 +182,42 @@ export default function Home() {
     );
   }
   
-  const hasMoreTransactions = limit < totalTransactions;
+  // const hasMoreTransactions = limit < totalTransactions;
   
+  /*
   const buildUrl = (newLimit?: number, cards?: string[], sort?: string) => {
     const params = new URLSearchParams();
     const limitToUse = newLimit !== undefined ? newLimit : limit;
     if (limitToUse > 50) params.set('limit', limitToUse.toString());
-    const cardsToUse = cards !== undefined ? cards : selectedCards;
+    const cardsToUse = cards !== undefined ? cards : [];
     if (cardsToUse.length > 0) params.set('cards', cardsToUse.join(','));
     const sortToUse = sort !== undefined ? sort : sortOrder;
     if (sortToUse !== 'newest') params.set('sort', sortToUse);
     return `/?${params.toString()}`;
   };
+  */
 
+  /*
   const toggleCard = (cardId: string) => {
     const newCards = selectedCards.includes(cardId)
       ? selectedCards.filter(id => id !== cardId)
       : [...selectedCards, cardId];
     return buildUrl(50, newCards);
   };
+  */
 
+  /*
   const removeCard = (cardId: string) => {
     const newCards = selectedCards.filter(id => id !== cardId);
     return buildUrl(limit, newCards);
   };
+  */
 
+  /*
   const toggleSort = () => {
     return buildUrl(50, selectedCards, sortOrder === 'newest' ? 'oldest' : 'newest');
   };
+  */
 
   return (
     <div className="min-h-screen bg-black py-8 px-4">
@@ -397,7 +404,7 @@ export default function Home() {
         {/* <FoodSavingsInsight totalFoodSpending={foodDiningLast12Months} /> */}
         <MonthlySpendingSection 
           monthlySpendingData={monthlySpending} 
-          allTransactions={allSortedTransactions}
+          allTransactions={allSortedTransactions as any}
           exchangeRates={exchangeRates}
         />
         

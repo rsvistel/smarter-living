@@ -1,6 +1,6 @@
 'use client';
 
-import { Leaf, Car, Bike, Bus } from 'lucide-react';
+import { Leaf, Bike, Bus } from 'lucide-react';
 
 interface Transaction {
   CardId: string;

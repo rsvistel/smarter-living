@@ -30,11 +30,11 @@ function parseCSV(csvText: string): Transaction[] {
     .filter(line => line.trim())
     .map(line => {
       const values = line.split(',');
-      const transaction: any = {};
+      const transaction: Record<string, string> = {};
       headers.forEach((header, index) => {
         transaction[header] = values[index] || '';
       });
-      return transaction as Transaction;
+      return transaction as unknown as Transaction;
     });
 }
 
@@ -95,7 +95,7 @@ interface MonthlySpending {
 export default async function OpportunityCostPage({ searchParams }: { searchParams: Promise<{ household?: string }> }) {
   const params = await searchParams;
   const householdSize = parseInt(params.household || '1', 10);
-  let categorySpending = {
+  const categorySpending = {
     'Food & Dining': 0,
     'Retail & Shopping': 0,
     'Transportation': 0,

@@ -4,10 +4,10 @@ import { useState, useEffect } from 'react'
 import { isAuthenticated, logout, getCurrentUser } from '../../lib/api'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Bell, Menu, LogOut, CreditCard, X, Library, LibraryBig, BookOpen } from 'lucide-react'
+import { Menu, LogOut, CreditCard, X, BookOpen } from 'lucide-react'
 
 export default function Header() {
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<{name?: string; email?: string} | null>(null)
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const router = useRouter()
