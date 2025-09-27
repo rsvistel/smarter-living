@@ -5,6 +5,10 @@ const { apiReference } = require('@scalar/express-api-reference');
 const { Pool } = require('pg');
 const { PrismaClient } = require('./generated/prisma');
 const bcrypt = require('bcryptjs');
+const multer = require('multer');
+const csv = require('csv-parser');
+const fs = require('fs');
+const TransactionRepository = require('./services/TransactionRepository');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -18,6 +22,24 @@ const pool = new Pool({
 
 // Prisma client
 const prisma = new PrismaClient();
+
+// Transaction repository
+const transactionRepo = new TransactionRepository();
+
+// Configure multer for file uploads
+const upload = multer({
+  dest: '/tmp/claude/', // Upload to temp directory
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only CSV files are allowed'), false);
+    }
+  },
+  limits: {
+    fileSize: 50 * 1024 * 1024 // 50MB limit
+  }
+});
 
 const swaggerDefinition = {
   openapi: '3.0.0',
@@ -209,6 +231,134 @@ app.get('/users', async (req, res) => {
     console.error('Error fetching users:', error);
     res.status(500).json({
       error: 'Failed to fetch users',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /transactions/upload:
+ *   post:
+ *     summary: Upload CSV file with transactions
+ *     description: Upload a CSV file containing transaction data and insert all transactions into the database
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: CSV file containing transaction data
+ *     responses:
+ *       200:
+ *         description: Transactions uploaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Transactions uploaded successfully
+ *                 count:
+ *                   type: integer
+ *                   example: 1500
+ *                 filename:
+ *                   type: string
+ *                   example: transactions.csv
+ *       400:
+ *         description: Invalid file or data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Invalid CSV format or missing required fields
+ *       500:
+ *         description: Server error during processing
+ */
+app.post('/transactions/upload', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        error: 'No file uploaded. Please upload a CSV file.'
+      });
+    }
+
+    const filePath = req.file.path;
+    const transactions = [];
+
+    // Parse CSV file
+    await new Promise((resolve, reject) => {
+      fs.createReadStream(filePath)
+        .pipe(csv())
+        .on('data', (row) => {
+          try {
+            // Map CSV columns to database fields based on your CSV structure
+            const transaction = {
+              cardId: row.CardId || row['﻿CardId'], // Handle potential BOM
+              ageCat: row.Age_cat,
+              trxDate: row.trx_date,
+              trxAmount: parseFloat(row.trx_amount),
+              trxDesc: row.trx_desc,
+              trxCity: row.trx_city,
+              trxCountry: row.trx_country,
+              mccGroup: row.MccGroup,
+              isCardPresent: row.IsCardPresent === 'TRUE',
+              isPurchase: row.IsPurchase === 'TRUE',
+              isCash: row.IsCash === 'TRUE'
+            };
+
+            // Only add if required fields are present
+            if (transaction.cardId && transaction.trxDate && !isNaN(transaction.trxAmount)) {
+              transactions.push(transaction);
+            }
+          } catch (parseError) {
+            console.warn('Error parsing row:', parseError.message, row);
+          }
+        })
+        .on('end', () => {
+          resolve();
+        })
+        .on('error', (error) => {
+          reject(error);
+        });
+    });
+
+    // Clean up uploaded file
+    fs.unlinkSync(filePath);
+
+    if (transactions.length === 0) {
+      return res.status(400).json({
+        error: 'No valid transactions found in the CSV file'
+      });
+    }
+
+    // Insert all transactions using the repository method
+    const result = await transactionRepo.insertTransactions(transactions);
+
+    res.json({
+      message: 'Transactions uploaded successfully',
+      count: result.count,
+      filename: req.file.originalname,
+      totalRowsProcessed: transactions.length
+    });
+
+  } catch (error) {
+    // Clean up file if it exists
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+
+    console.error('Error processing CSV upload:', error);
+    res.status(500).json({
+      error: 'Failed to process CSV file',
       message: error.message
     });
   }
@@ -500,7 +650,7 @@ app.use(
   }),
 );
 
-app.listen(8000, () => {
+app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`API Documentation available at http://localhost:${PORT}/docs`);
 });
