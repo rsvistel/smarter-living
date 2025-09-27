@@ -63,8 +63,8 @@ export default function MonthlySpendingChart({ categories, totalAmount }: Monthl
         ]}
         width={300}
         height={200}
-        slotProps={{
-          legend: { hidden: true },
+        slots={{
+          legend: () => null,
         }}
         sx={{
           '& .MuiChartsAxis-root': {

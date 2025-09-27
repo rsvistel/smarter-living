@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 import OpportunityCostVisualizer from '../components/OpportunityCostVisualizer';
 import HouseholdSizeSelector from '../components/HouseholdSizeSelector';
 
@@ -36,13 +37,13 @@ export default function OpportunityCostClient({ categorySpending, initialHouseho
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
           <div className="flex items-center gap-4">
-            <a 
+            <Link 
               href="/" 
               className="inline-flex items-center gap-2 pr-3 py-2 text-sm font-medium text-gray-300 rounded-lg transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
               Back to Home
-            </a>
+            </Link>
           </div>
           <h1 className="text-4xl font-light text-white mb-2">
             Opportunity Cost Visualizer

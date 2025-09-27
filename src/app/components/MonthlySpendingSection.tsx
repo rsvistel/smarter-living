@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { CATEGORY_ICONS } from '../mcc-mapping';
 import MonthlySpendingChart from './MonthlySpendingChart';
-import { WandSparkles, Leaf, Car, Bike, Bus, ShoppingBag, UtensilsCrossed, Home, Recycle, Smartphone, BookOpen, Zap, Shield, ChevronDown, ChevronUp } from 'lucide-react';
+import { WandSparkles, Leaf, Bike, Bus, ShoppingBag, UtensilsCrossed, Home, Recycle, Smartphone, BookOpen, Shield, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface MonthlySpending {
   month: string;
@@ -16,7 +16,7 @@ interface MonthlySpending {
 
 interface MonthlySpendingSectionProps {
   monthlySpendingData: MonthlySpending[];
-  allTransactions?: any[];
+  allTransactions?: Array<{trx_date: string; trx_mcc: string; trx_amount: string; trx_currency: string; trx_desc?: string; trx_city?: string; [key: string]: unknown}>;
   exchangeRates?: Record<string, number>;
 }
 
@@ -303,7 +303,7 @@ export default function MonthlySpendingSection({ monthlySpendingData, allTransac
     let bundlingDays = 0;
     let exampleStore = '';
     
-    for (const [date, stores] of dailyStoreVisits.entries()) {
+    for (const [date] of dailyStoreVisits.entries()) {
       const storeVisitCounts = new Map<string, number>();
       
       // Count visits to each store on this day
@@ -746,7 +746,7 @@ export default function MonthlySpendingSection({ monthlySpendingData, allTransac
       </div>
       
       {/* Render visible CO2 tips */}
-      {visibleTips.map((tip, index) => (
+      {visibleTips.map((tip) => (
         <div key={tip.id}>
           {renderTipComponent(tip.component)}
         </div>

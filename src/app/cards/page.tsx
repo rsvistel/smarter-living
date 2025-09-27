@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { fetchMyTransactions, fetchAllCards, addCardToUser, ApiCardsResponse } from '../../lib/api';
+import { fetchMyTransactions, fetchAllCards, addCardToUser } from '../../lib/api';
 import { transformApiData, getExchangeRates, CardInfo } from '../../lib/dataTransformation';
 import { ArrowLeft, CreditCard, Plus, X } from 'lucide-react';
 import Link from 'next/link';
@@ -60,7 +60,7 @@ export default function CardsPage() {
       }
     } catch (error) {
       console.error('Error fetching all cards:', error);
-      alert(`Error: ${error}`);
+      alert('Error: Failed to fetch cards');
     } finally {
       setLoadingAllCards(false);
     }
@@ -79,13 +79,13 @@ export default function CardsPage() {
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <a 
+          <Link 
             href="/" 
             className="inline-flex items-center gap-2 pr-3 py-2 text-sm font-medium text-gray-300 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Home
-          </a>
+          </Link>
           <div>
             <h1 className="text-4xl font-light text-white mb-2">Manage Cards</h1>
             <p className="text-gray-400">
@@ -213,7 +213,7 @@ export default function CardsPage() {
                             } else {
                               alert(`Error: ${response.error}`);
                             }
-                          } catch (error) {
+                          } catch {
                             alert('Failed to add card');
                           } finally {
                             setAddingCardId(null);

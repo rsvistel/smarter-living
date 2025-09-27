@@ -95,7 +95,7 @@ export default function OpportunityCostVisualizer({ categorySpending, householdS
           <WandSparkles className="w-6 h-6 text-white" />
           <h2 className="text-2xl font-light text-white">Opportunity Cost Visualizer</h2>
         </div>
-        <p className="text-gray-300">Great job! You're spending within reasonable limits across all categories. 🎉</p>
+        <p className="text-gray-300">Great job! You&apos;re spending within reasonable limits across all categories. 🎉</p>
       </>
     );
   }

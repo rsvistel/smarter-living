@@ -104,7 +104,7 @@ export default function SignUp() {
               Account Created!
             </h2>
             <p className="mt-4 text-sm text-gray-400">
-              Your account has been created successfully. You're being signed in...
+              Your account has been created successfully. You&apos;re being signed in...
             </p>
           </div>
         </div>

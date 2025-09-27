@@ -5,7 +5,7 @@ import { ReactNode } from 'react'
 
 interface SessionProviderProps {
   children: ReactNode
-  session?: any
+  session?: unknown
 }
 
 export default function SessionProvider({ children, session }: SessionProviderProps) {
