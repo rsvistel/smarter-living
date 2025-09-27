@@ -6,6 +6,7 @@ import FoodSavingsInsight from './components/OpportunityCostVisualizer';
 import { fetchUserTransactions } from '../lib/api';
 import { transformApiData, getExchangeRates, Transaction, CardInfo, MonthlySpending, CURRENCY_CODES } from '../lib/dataTransformation';
 import { getAuthSession } from '../lib/auth';
+import { CreditCard } from 'lucide-react';
 
 // Transaction interface is now imported from dataTransformation
 
@@ -152,43 +153,107 @@ export default async function Home({ searchParams }: PageProps) {
   return (
     <div className="min-h-screen bg-black py-8 px-4">
       <div className="max-w-3xl mx-auto">
-        <div className="mb-6">
+        <div className="mb-2">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-3xl font-light text-white">My Cards</h3>
+            <a href="/cards" className="hidden md:flex px-3 py-1.5 text-md font-medium cursor-pointer transition-colors items-center text-white hover:text-gray-300">
+              <CreditCard className="h-4 w-4 mr-2" /> Manage cards
+            </a>
             {selectedCards.length > 0 && (
               <div className="text-sm text-gray-400">
                 {selectedCards.length} card{selectedCards.length !== 1 ? 's' : ''} selected
               </div>
             )}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {cardStats.map((card) => {
-              const isSelected = selectedCards.includes(card.id);
-              return (
-                <a
-                  key={card.id}
-                  href={toggleCard(card.id)}
-                  className="block w-full max-w-sm mx-auto"
-                >
-                  <div className="relative w-full aspect-[1.586/1] bg-gradient-to-r from-gray-800 to-gray-900 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 p-6 border border-gray-700">
-                    {/* Credit card design elements */}
-                    <div className="absolute top-4 right-4">
-                      <div className="w-8 h-6 bg-gray-600 rounded-sm opacity-60"></div>
-                    </div>
-                    
-                    {/* Card number */}
-                    <div className="absolute bottom-6 left-6 right-6">
-                      <div className="font-mono text-sm font-medium text-white tracking-wider">
-                        {card.id.replace(/(.{4})/g, '$1 ').trim()}
+          
+          {/* Mobile: Show 1 card with slider */}
+          <div className="block mb-6 md:hidden md:mb-0">
+            <div className="flex gap-4 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+              {cardStats.slice(0, 1).map((card) => {
+                const isSelected = selectedCards.includes(card.id);
+                return (
+                  <a
+                    key={card.id}
+                    href={toggleCard(card.id)}
+                    className="flex-shrink-0 w-full"
+                  >
+                    <div className="relative w-full aspect-[1.586/1] bg-gradient-to-r from-gray-800 to-gray-900 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 p-6 border border-gray-700">
+                      {/* Credit card design elements */}
+                      <div className="absolute top-4 right-4">
+                        <div className="w-8 h-6 bg-gray-600 rounded-sm opacity-60"></div>
                       </div>
+                      
+                      {/* Card number */}
+                      <div className="absolute bottom-6 left-6 right-6">
+                        <div className="font-mono text-sm font-medium text-white tracking-wider">
+                          {card.id.replace(/(.{4})/g, '$1 ').trim()}
+                        </div>
+                      </div>
+                      
+                      {/* Subtle pattern/texture */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-transparent rounded-xl"></div>
                     </div>
-                    
-                    {/* Subtle pattern/texture */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-transparent rounded-xl"></div>
-                  </div>
-                </a>
-              );
-            })}
+                  </a>
+                );
+              })}
+            </div>
+            
+            {/* Mobile: Show additional cards info and manage button */}
+            <div className="mt-2">
+              {cardStats.length > 1 && (
+                <p className="text-sm text-center text-gray-400 mb-4">
+                  + {cardStats.length - 1} other card{cardStats.length - 1 !== 1 ? 's' : ''}
+                </p>
+              )}
+              <a href="/cards" className="w-full justify-center flex items-center px-6 py-3 text-sm font-medium text-black bg-white hover:bg-gray-200 transition-colors">
+                <CreditCard className="h-4 w-4 mr-2" />
+                Manage Cards
+              </a>
+            </div>
+          </div>
+
+          {/* Desktop: Show 3 cards in grid */}
+          <div className="hidden md:block">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+              {cardStats.slice(0, 3).map((card) => {
+                const isSelected = selectedCards.includes(card.id);
+                return (
+                  <a
+                    key={card.id}
+                    href={toggleCard(card.id)}
+                    className="block w-full max-w-sm mx-auto"
+                  >
+                    <div className="relative w-full aspect-[1.586/1] bg-gradient-to-r from-gray-800 to-gray-900 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 p-6 border border-gray-700">
+                      {/* Credit card design elements */}
+                      <div className="absolute top-4 right-4">
+                        <div className="w-8 h-6 bg-gray-600 rounded-sm opacity-60"></div>
+                      </div>
+                      
+                      {/* Card number */}
+                      <div className="absolute bottom-6 left-6 right-6">
+                        <div className="font-mono text-sm font-medium text-white tracking-wider">
+                          {card.id.replace(/(.{4})/g, '$1 ').trim()}
+                        </div>
+                      </div>
+                      
+                      {/* Subtle pattern/texture */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-transparent rounded-xl"></div>
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+            
+            {/* Desktop: Show additional cards info and manage button */}
+            <div className="flex items-center justify-between mt-4">
+              {cardStats.length > 3 ? (
+                <span className="text-sm text-gray-400">
+                  + {cardStats.length - 3} other{cardStats.length - 3 !== 1 ? 's' : ''}
+                </span>
+              ) : (
+                <span></span>
+              )}
+            </div>
           </div>
         </div>
         

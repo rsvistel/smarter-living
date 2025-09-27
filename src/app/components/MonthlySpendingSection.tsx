@@ -387,36 +387,39 @@ export default function MonthlySpendingSection({ monthlySpendingData, allTransac
 
   // Function to render individual CO2 tip components
   const renderTipComponent = (tipType: string) => {
-    const baseClasses = "mt-4 bg-green-900 p-4 border-l-4 border-green-400";
+    const baseClasses = "mt-2 bg-black p-4";
     
     switch (tipType) {
       case 'bundling':
         return (
           <div className={baseClasses}>
-            <div className="flex items-center gap-3 mb-3">
-              <Leaf className="w-5 h-5 text-green-400" />
-              <h4 className="text-sm font-medium text-white">CO₂ Emission Tip</h4>
+            <div className="flex gap-3 mb-2">
+              <Leaf
+                className="mt-0.5 shrink-0 opacity-60 text-green-400"
+                size={16}
+                strokeWidth={2}
+                aria-hidden="true"
+              />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-white">CO₂ Emission Tip</p>
+              </div>
             </div>
-            <div className="flex items-start gap-3">
-              <ShoppingBag className="w-4 h-4 text-gray-300 mt-1 flex-shrink-0" />
-              <div>
-                <p className="text-sm text-gray-200 mb-2">
-                  You made multiple trips to the same store on {bundlingCheck.dayCount} day{bundlingCheck.dayCount !== 1 ? 's' : ''} this month.
-                </p>
-                <p className="text-xs text-gray-300 mb-3">
+            <div className="space-y-1">
+              <p className="text-gray-400">
+                  You made multiple trips to the same store on {bundlingCheck.dayCount} day{bundlingCheck.dayCount !== 1 ? 's' : ''} this month. 
                   How about bundling and preplanning your purchase next time to save CO₂ and your leisurely time?
                 </p>
-                <div className="flex flex-wrap gap-3 text-xs">
+                
+                <div className="flex items-center gap-4 pt-2">
                   <div className="flex items-center gap-1.5">
-                    <ShoppingBag className="w-3 h-3 text-blue-400" />
-                    <span className="text-gray-300">Plan ahead</span>
+                    <ShoppingBag className="w-3 h-3 text-blue-400" strokeWidth={2} />
+                    <span className="text-sm text-gray-400">Plan ahead</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <Leaf className="w-3 h-3 text-green-400" />
-                    <span className="text-gray-300">Bundle purchases</span>
+                    <Leaf className="w-3 h-3 text-green-400" strokeWidth={2} />
+                    <span className="text-sm text-gray-400">Bundle purchases</span>
                   </div>
                 </div>
-              </div>
             </div>
           </div>
         );
@@ -424,28 +427,31 @@ export default function MonthlySpendingSection({ monthlySpendingData, allTransac
       case 'mealDelivery':
         return (
           <div className={baseClasses}>
-            <div className="flex items-center gap-3 mb-3">
-              <Leaf className="w-5 h-5 text-green-400" />
-              <h4 className="text-sm font-medium text-white">CO₂ Emission Tip</h4>
+            <div className="flex gap-3 mb-2">
+              <Leaf
+                className="mt-0.5 shrink-0 opacity-60 text-green-400"
+                size={16}
+                strokeWidth={2}
+                aria-hidden="true"
+              />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-white">CO₂ Emission Tip</p>
+              </div>
             </div>
-            <div className="flex items-start gap-3">
-              <UtensilsCrossed className="w-4 h-4 text-gray-300 mt-1 flex-shrink-0" />
-              <div>
-                <p className="text-sm text-gray-200 mb-2">
-                  You spent <span className="font-semibold text-green-400">{monthlyMealDeliveryExpenses.toFixed(0)} CHF</span> on meal deliveries this month.
-                </p>
-                <p className="text-xs text-gray-300 mb-3">
-                  Less meal deliveries - more grocery shopping! Better for your budget and better for the environment.
-                </p>
-                <div className="flex flex-wrap gap-3 text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <ShoppingBag className="w-3 h-3 text-blue-400" />
-                    <span className="text-gray-300">Grocery shopping</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <UtensilsCrossed className="w-3 h-3 text-green-400" />
-                    <span className="text-gray-300">Home cooking</span>
-                  </div>
+            <div className="space-y-1">
+              <p className="text-gray-400">
+                You spent <span className="font-semibold text-green-400">{monthlyMealDeliveryExpenses.toFixed(0)} CHF</span> on meal deliveries this month. 
+                Less meal deliveries - more grocery shopping! Better for your budget and better for the environment.
+              </p>
+              
+              <div className="flex items-center gap-4 pt-2">
+                <div className="flex items-center gap-1.5">
+                  <ShoppingBag className="w-3 h-3 text-blue-400" strokeWidth={2} />
+                  <span className="text-sm text-gray-400">Grocery shopping</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <UtensilsCrossed className="w-3 h-3 text-green-400" strokeWidth={2} />
+                  <span className="text-sm text-gray-400">Home cooking</span>
                 </div>
               </div>
             </div>
@@ -455,28 +461,31 @@ export default function MonthlySpendingSection({ monthlySpendingData, allTransac
       case 'ikea':
         return (
           <div className={baseClasses}>
-            <div className="flex items-center gap-3 mb-3">
-              <Leaf className="w-5 h-5 text-green-400" />
-              <h4 className="text-sm font-medium text-white">CO₂ Emission Tip</h4>
+            <div className="flex gap-3 mb-2">
+              <Leaf
+                className="mt-0.5 shrink-0 opacity-60 text-green-400"
+                size={16}
+                strokeWidth={2}
+                aria-hidden="true"
+              />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-white">CO₂ Emission Tip</p>
+              </div>
             </div>
-            <div className="flex items-start gap-3">
-              <Home className="w-4 h-4 text-gray-300 mt-1 flex-shrink-0" />
-              <div>
-                <p className="text-sm text-gray-200 mb-2">
-                  You spent <span className="font-semibold text-green-400">{monthlyIKEAExpenses.toFixed(0)} CHF</span> at IKEA this month.
-                </p>
-                <p className="text-xs text-gray-300 mb-3">
-                  Have you considered second hand furniture?
-                </p>
-                <div className="flex flex-wrap gap-3 text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <Recycle className="w-3 h-3 text-blue-400" />
-                    <span className="text-gray-300">Second-hand</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Home className="w-3 h-3 text-green-400" />
-                    <span className="text-gray-300">Vintage finds</span>
-                  </div>
+            <div className="space-y-1">
+              <p className="text-gray-400">
+                You spent <span className="font-semibold text-green-400">{monthlyIKEAExpenses.toFixed(0)} CHF</span> at IKEA this month. 
+                Have you considered second hand furniture?
+              </p>
+              
+              <div className="flex items-center gap-4 pt-2">
+                <div className="flex items-center gap-1.5">
+                  <Recycle className="w-3 h-3 text-blue-400" strokeWidth={2} />
+                  <span className="text-sm text-gray-400">Second-hand</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Home className="w-3 h-3 text-green-400" strokeWidth={2} />
+                  <span className="text-sm text-gray-400">Vintage finds</span>
                 </div>
               </div>
             </div>
@@ -486,28 +495,31 @@ export default function MonthlySpendingSection({ monthlySpendingData, allTransac
       case 'subscription':
         return (
           <div className={baseClasses}>
-            <div className="flex items-center gap-3 mb-3">
-              <Leaf className="w-5 h-5 text-green-400" />
-              <h4 className="text-sm font-medium text-white">CO₂ Emission Tip</h4>
+            <div className="flex gap-3 mb-2">
+              <Leaf
+                className="mt-0.5 shrink-0 opacity-60 text-green-400"
+                size={16}
+                strokeWidth={2}
+                aria-hidden="true"
+              />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-white">CO₂ Emission Tip</p>
+              </div>
             </div>
-            <div className="flex items-start gap-3">
-              <Smartphone className="w-4 h-4 text-gray-300 mt-1 flex-shrink-0" />
-              <div>
-                <p className="text-sm text-gray-200 mb-2">
-                  You spent <span className="font-semibold text-green-400">{monthlyDigitalSubscriptionExpenses.toFixed(0)} CHF</span> on digital subscriptions this month.
-                </p>
-                <p className="text-xs text-gray-300 mb-3">
-                  Have you made use of this subscription?
-                </p>
-                <div className="flex flex-wrap gap-3 text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <Recycle className="w-3 h-3 text-blue-400" />
-                    <span className="text-gray-300">Cancel unused</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Smartphone className="w-3 h-3 text-green-400" />
-                    <span className="text-gray-300">Review usage</span>
-                  </div>
+            <div className="space-y-1">
+              <p className="text-gray-400">
+                You spent <span className="font-semibold text-green-400">{monthlyDigitalSubscriptionExpenses.toFixed(0)} CHF</span> on digital subscriptions this month. 
+                Have you made use of this subscription?
+              </p>
+              
+              <div className="flex items-center gap-4 pt-2">
+                <div className="flex items-center gap-1.5">
+                  <Recycle className="w-3 h-3 text-blue-400" strokeWidth={2} />
+                  <span className="text-sm text-gray-400">Cancel unused</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Smartphone className="w-3 h-3 text-green-400" strokeWidth={2} />
+                  <span className="text-sm text-gray-400">Review usage</span>
                 </div>
               </div>
             </div>
@@ -517,28 +529,31 @@ export default function MonthlySpendingSection({ monthlySpendingData, allTransac
       case 'book':
         return (
           <div className={baseClasses}>
-            <div className="flex items-center gap-3 mb-3">
-              <Leaf className="w-5 h-5 text-green-400" />
-              <h4 className="text-sm font-medium text-white">CO₂ Emission Tip</h4>
+            <div className="flex gap-3 mb-2">
+              <Leaf
+                className="mt-0.5 shrink-0 opacity-60 text-green-400"
+                size={16}
+                strokeWidth={2}
+                aria-hidden="true"
+              />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-white">CO₂ Emission Tip</p>
+              </div>
             </div>
-            <div className="flex items-start gap-3">
-              <BookOpen className="w-4 h-4 text-gray-300 mt-1 flex-shrink-0" />
-              <div>
-                <p className="text-sm text-gray-200 mb-2">
-                  You spent <span className="font-semibold text-green-400">{monthlyBookExpenses.toFixed(0)} CHF</span> on books this month.
-                </p>
-                <p className="text-xs text-gray-300 mb-3">
-                  Have you read it?
-                </p>
-                <div className="flex flex-wrap gap-3 text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <BookOpen className="w-3 h-3 text-blue-400" />
-                    <span className="text-gray-300">Start reading</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Recycle className="w-3 h-3 text-green-400" />
-                    <span className="text-gray-300">Share when done</span>
-                  </div>
+            <div className="space-y-1">
+              <p className="text-gray-400">
+                You spent <span className="font-semibold text-green-400">{monthlyBookExpenses.toFixed(0)} CHF</span> on books this month. 
+                Have you read it?
+              </p>
+              
+              <div className="flex items-center gap-4 pt-2">
+                <div className="flex items-center gap-1.5">
+                  <BookOpen className="w-3 h-3 text-blue-400" strokeWidth={2} />
+                  <span className="text-sm text-gray-400">Start reading</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Recycle className="w-3 h-3 text-green-400" strokeWidth={2} />
+                  <span className="text-sm text-gray-400">Share when done</span>
                 </div>
               </div>
             </div>
@@ -548,28 +563,31 @@ export default function MonthlySpendingSection({ monthlySpendingData, allTransac
       case 'electronics':
         return (
           <div className={baseClasses}>
-            <div className="flex items-center gap-3 mb-3">
-              <Leaf className="w-5 h-5 text-green-400" />
-              <h4 className="text-sm font-medium text-white">CO₂ Emission Tip</h4>
+            <div className="flex gap-3 mb-2">
+              <Leaf
+                className="mt-0.5 shrink-0 opacity-60 text-green-400"
+                size={16}
+                strokeWidth={2}
+                aria-hidden="true"
+              />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-white">CO₂ Emission Tip</p>
+              </div>
             </div>
-            <div className="flex items-start gap-3">
-              <Zap className="w-4 h-4 text-gray-300 mt-1 flex-shrink-0" />
-              <div>
-                <p className="text-sm text-gray-200 mb-2">
-                  You spent <span className="font-semibold text-green-400">{monthlyElectronicsExpenses.toFixed(0)} CHF</span> on electronics this month.
-                </p>
-                <p className="text-xs text-gray-300 mb-3">
-                  Check your warranty expiration.
-                </p>
-                <div className="flex flex-wrap gap-3 text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <Shield className="w-3 h-3 text-blue-400" />
-                    <span className="text-gray-300">Check warranty</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Recycle className="w-3 h-3 text-green-400" />
-                    <span className="text-gray-300">Extended protection</span>
-                  </div>
+            <div className="space-y-1">
+              <p className="text-gray-400">
+                You spent <span className="font-semibbold text-green-400">{monthlyElectronicsExpenses.toFixed(0)} CHF</span> on electronics this month. 
+                Check your warranty expiration.
+              </p>
+              
+              <div className="flex items-center gap-4 pt-2">
+                <div className="flex items-center gap-1.5">
+                  <Shield className="w-3 h-3 text-blue-400" strokeWidth={2} />
+                  <span className="text-sm text-gray-400">Check warranty</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Recycle className="w-3 h-3 text-green-400" strokeWidth={2} />
+                  <span className="text-sm text-gray-400">Extended protection</span>
                 </div>
               </div>
             </div>
@@ -579,28 +597,31 @@ export default function MonthlySpendingSection({ monthlySpendingData, allTransac
       case 'fuel':
         return (
           <div className={baseClasses}>
-            <div className="flex items-center gap-3 mb-3">
-              <Leaf className="w-5 h-5 text-green-400" />
-              <h4 className="text-sm font-medium text-white">CO₂ Emission Tip</h4>
+            <div className="flex gap-3 mb-2">
+              <Leaf
+                className="mt-0.5 shrink-0 opacity-60 text-green-400"
+                size={16}
+                strokeWidth={2}
+                aria-hidden="true"
+              />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-white">CO₂ Emission Tip</p>
+              </div>
             </div>
-            <div className="flex items-start gap-3">
-              <Car className="w-4 h-4 text-gray-300 mt-1 flex-shrink-0" />
-              <div>
-                <p className="text-sm text-gray-200 mb-2">
-                  You spent <span className="font-semibold text-green-400">{monthlyFuelExpenses.toFixed(0)} CHF</span> on fuel this month.
-                </p>
-                <p className="text-xs text-gray-300 mb-3">
-                  You use a lot of gas! Consider cycling or public transport to reduce your environmental impact and save money.
-                </p>
-                <div className="flex flex-wrap gap-3 text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <Bike className="w-3 h-3 text-blue-400" />
-                    <span className="text-gray-300">Cycling</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Bus className="w-3 h-3 text-purple-400" />
-                    <span className="text-gray-300">Public transport</span>
-                  </div>
+            <div className="space-y-1">
+              <p className="text-gray-400">
+                You spent <span className="font-semibold text-green-400">{monthlyFuelExpenses.toFixed(0)} CHF</span> on fuel this month. 
+                You use a lot of gas! Consider cycling or public transport to reduce your environmental impact and save money.
+              </p>
+              
+              <div className="flex items-center gap-4 pt-2">
+                <div className="flex items-center gap-1.5">
+                  <Bike className="w-3 h-3 text-blue-400" strokeWidth={2} />
+                  <span className="text-sm text-gray-400">Cycling</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Bus className="w-3 h-3 text-purple-400" strokeWidth={2} />
+                  <span className="text-sm text-gray-400">Public transport</span>
                 </div>
               </div>
             </div>
@@ -610,28 +631,31 @@ export default function MonthlySpendingSection({ monthlySpendingData, allTransac
       case 'parking':
         return (
           <div className={baseClasses}>
-            <div className="flex items-center gap-3 mb-3">
-              <Leaf className="w-5 h-5 text-green-400" />
-              <h4 className="text-sm font-medium text-white">CO₂ Emission Tip</h4>
+            <div className="flex gap-3 mb-2">
+              <Leaf
+                className="mt-0.5 shrink-0 opacity-60 text-green-400"
+                size={16}
+                strokeWidth={2}
+                aria-hidden="true"
+              />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-white">CO₂ Emission Tip</p>
+              </div>
             </div>
-            <div className="flex items-start gap-3">
-              <Car className="w-4 h-4 text-gray-300 mt-1 flex-shrink-0" />
-              <div>
-                <p className="text-sm text-gray-200 mb-2">
-                  You spent <span className="font-semibold text-green-400">{monthlyParkingExpenses.toFixed(0)} CHF</span> on parking this month.
-                </p>
-                <p className="text-xs text-gray-300 mb-3">
-                  Consider sustainable transport to reduce costs and CO₂ emissions.
-                </p>
-                <div className="flex flex-wrap gap-3 text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <Bike className="w-3 h-3 text-blue-400" />
-                    <span className="text-gray-300">Cycling</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Bus className="w-3 h-3 text-purple-400" />
-                    <span className="text-gray-300">Public transport</span>
-                  </div>
+            <div className="space-y-1">
+              <p className="text-gray-400">
+                You spent <span className="font-semibold text-green-400">{monthlyParkingExpenses.toFixed(0)} CHF</span> on parking this month. 
+                Consider sustainable transport to reduce costs and CO₂ emissions.
+              </p>
+              
+              <div className="flex items-center gap-4 pt-2">
+                <div className="flex items-center gap-1.5">
+                  <Bike className="w-3 h-3 text-blue-400" strokeWidth={2} />
+                  <span className="text-sm text-gray-400">Cycling</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Bus className="w-3 h-3 text-purple-400" strokeWidth={2} />
+                  <span className="text-sm text-gray-400">Public transport</span>
                 </div>
               </div>
             </div>
@@ -679,7 +703,7 @@ export default function MonthlySpendingSection({ monthlySpendingData, allTransac
         </button>
       </div>
       
-      <div className="flex flex-col md:flex-row md:items-center gap-6 md:gap-8 md:mb-4 md:mb-6">
+      <div className="flex flex-col md:flex-row md:items-center gap-6 md:gap-8 md:mb-4 mb-6">
         <div className="flex justify-center md:flex-shrink-0">
           <MonthlySpendingChart 
             categories={currentMonth.categories} 

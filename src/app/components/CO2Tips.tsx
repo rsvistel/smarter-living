@@ -100,30 +100,29 @@ export default function CO2Tips({ transactions, exchangeRates }: CO2TipsProps) {
 
   if (showFuelTip) {
     return (
-      <div className="mb-6 bg-green-900 p-4 border-l-4 border-green-400">
-        <div className="flex items-center gap-3 mb-3">
-          <Leaf className="w-5 h-5 text-green-400" />
-          <h3 className="text-lg font-medium text-white">CO₂ Emission Tip</h3>
-        </div>
-        
-        <div className="flex items-start gap-3">
-          <Car className="w-5 h-5 text-gray-300 mt-1 flex-shrink-0" />
-          <div>
-            <p className="text-sm text-gray-200 mb-2">
-              You spent <span className="font-semibold text-green-400">{recentFuelExpenses.toFixed(0)} CHF</span> on fuel in the last 30 days.
-            </p>
-            <p className="text-sm text-gray-300 mb-3">
-              You use a lot of gas! Consider cycling or public transport to reduce your environmental impact and save money.
+      <div className="mb-6 bg-gray-950 rounded-xl p-4 border border-gray-800">
+        <div className="flex gap-3">
+          <Leaf
+            className="mt-0.5 shrink-0 opacity-60 text-white"
+            size={16}
+            strokeWidth={2}
+            aria-hidden="true"
+          />
+          <div className="space-y-1">
+            <p className="text-[13px] font-medium text-white">CO₂ Emission Tip</p>
+            <p className="text-xs text-gray-400">
+              You spent <span className="font-semibold text-green-400">{recentFuelExpenses.toFixed(0)} CHF</span> on fuel in the last 30 days. 
+              Consider cycling or public transport to reduce your environmental impact and save money.
             </p>
             
-            <div className="flex flex-wrap gap-4 text-xs">
+            <div className="flex items-center gap-4 pt-2">
               <div className="flex items-center gap-1.5">
-                <Bike className="w-4 h-4 text-blue-400" />
-                <span className="text-gray-300">Cycling</span>
+                <Bike className="w-3 h-3 text-blue-400" strokeWidth={2} />
+                <span className="text-xs text-gray-400">Cycling</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <Bus className="w-4 h-4 text-purple-400" />
-                <span className="text-gray-300">Public transport</span>
+                <Bus className="w-3 h-3 text-purple-400" strokeWidth={2} />
+                <span className="text-xs text-gray-400">Public transport</span>
               </div>
             </div>
           </div>
@@ -133,30 +132,29 @@ export default function CO2Tips({ transactions, exchangeRates }: CO2TipsProps) {
   }
 
   return (
-    <div className="mb-6 bg-green-900 p-4 border-l-4 border-green-400">
-      <div className="flex items-center gap-3 mb-3">
-        <Leaf className="w-5 h-5 text-green-400" />
-        <h3 className="text-lg font-medium text-white">CO₂ Emission Tip</h3>
-      </div>
-      
-      <div className="flex items-start gap-3">
-        <Car className="w-5 h-5 text-gray-300 mt-1 flex-shrink-0" />
-        <div>
-          <p className="text-sm text-gray-200 mb-2">
-            You spent <span className="font-semibold text-green-400">{recentParkingExpenses.toFixed(0)} CHF</span> on parking in the last 60 days.
-          </p>
-          <p className="text-sm text-gray-300 mb-3">
+    <div className="mb-6 bg-gray-950 rounded-xl p-4 border border-gray-800">
+      <div className="flex gap-3">
+        <Leaf
+          className="mt-0.5 shrink-0 opacity-60 text-white"
+          size={16}
+          strokeWidth={2}
+          aria-hidden="true"
+        />
+        <div className="space-y-1">
+          <p className="text-[13px] font-medium text-white">CO₂ Emission Tip</p>
+          <p className="text-xs text-gray-400">
+            You spent <span className="font-semibold text-green-400">{recentParkingExpenses.toFixed(0)} CHF</span> on parking in the last 60 days. 
             Consider using more sustainable transport options to reduce both costs and CO₂ emissions.
           </p>
           
-          <div className="flex flex-wrap gap-4 text-xs">
+          <div className="flex items-center gap-4 pt-2">
             <div className="flex items-center gap-1.5">
-              <Bike className="w-4 h-4 text-blue-400" />
-              <span className="text-gray-300">Cycling</span>
+              <Bike className="w-3 h-3 text-blue-400" strokeWidth={2} />
+              <span className="text-xs text-gray-400">Cycling</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <Bus className="w-4 h-4 text-purple-400" />
-              <span className="text-gray-300">Public transport</span>
+              <Bus className="w-3 h-3 text-purple-400" strokeWidth={2} />
+              <span className="text-xs text-gray-400">Public transport</span>
             </div>
           </div>
         </div>
